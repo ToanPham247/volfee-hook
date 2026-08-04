@@ -1,0 +1,1687 @@
+{
+ "$schema": "urn:programmable:v4-hook-submission:1.3.0",
+ "schemaVersion": 1,
+ "standardVersion": "1.3.0",
+ "stage": "prototype",
+ "model": {
+  "id": "volfee",
+  "name": "VolFee",
+  "summary": "One v4 hook on a canonical dynamic-fee pool: the LP fee auto-calibrates to the pool's OWN realized volatility (an EWMA of the per-swap tick delta, no external price source or keeper) so LPs are paid more in volatile markets and traders less in calm ones; the hook also enforces the mandatory Programmable volume fee (10 bps platform owner liability plus the project remainder as a project-claimable liability) non-bypassably on the same pool.",
+  "userOutcome": "A creator launches a WETH-paired token in one canonical v4 pool whose LP fee reprices itself every swap from realized volatility, so passive LPs are paid the most exactly when toxic flow is worst and traders pay the least in calm markets, with no external price source, admin, keeper or upgrade.",
+  "category": "market-structure",
+  "whyV4": "Only a v4 hook can (a) return a per-swap LP fee override (OVERRIDE_FEE_FLAG) in beforeSwap computed from the pool's own realized-volatility state, so the dynamic LP fee is set atomically per swap with no external price source or keeper, and (b) collect the mandatory volume fee non-bypassably through quadrant-dependent beforeSwap/afterSwap return deltas on the quote side of every canonical-pool swap. The volatility state is read in beforeSwap (before the swap) and updated in afterSwap (after it) so a swap can never lower its own fee."
+ },
+ "builder": {
+  "github": "ToanPham247",
+  "contact": "https://github.com/ToanPham247",
+  "beneficiary": null,
+  "licenseDeclaration": "MIT (SPDX-License-Identifier: MIT on all first-party src/ and test/ files); pinned dependencies retain their own licenses per compatibility.lock.json."
+ },
+ "publicMetadata": {
+  "project": {
+   "name": "VolFee",
+   "description": "A v4 hook that implements a dynamic LP fee auto-calibrating to realized volatility measured from on-chain tick movement, plus the mandatory Programmable volume fee split between an owner-claimable platform liability and a project-claimable project fee liability.",
+   "projectUri": null,
+   "logoUri": null,
+   "logoContentHash": null,
+   "metadataMutable": false,
+   "metadataOwner": null
+  },
+  "token": {
+   "name": "VolFee Token",
+   "symbol": "VOL",
+   "metadataUri": null,
+   "metadataContentHash": null,
+   "logoUri": null,
+   "logoContentHash": null,
+   "metadataMutable": false,
+   "metadataOwner": null
+  },
+  "claimedAffiliations": [
+   {
+    "organization": "Uniswap v4",
+    "relationship": "technology-use",
+    "evidenceUri": null
+   },
+   {
+    "organization": "OpenZeppelin Uniswap Hooks",
+    "relationship": "technology-use",
+    "evidenceUri": null
+   }
+  ],
+  "providerPresentations": []
+ },
+ "target": {
+  "chainId": 1,
+  "network": "ethereum",
+  "solidityVersion": "0.8.26",
+  "evmVersion": "cancun",
+  "dependencyBaseline": "model-specific-pinned",
+  "officialLaunchProfileId": null
+ },
+ "assets": [
+  {
+   "id": "weth",
+   "role": "quote",
+   "origin": "existing-erc20",
+   "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+   "decimals": 18,
+   "decimalsSource": "token-contract-observation",
+   "supplyPolicy": "externally-managed",
+   "initialSupply": null,
+   "behaviors": [
+    "standard"
+   ],
+   "controls": []
+  },
+  {
+   "id": "vol-token",
+   "role": "launched",
+   "origin": "new-fixed-supply",
+   "address": null,
+   "decimals": 18,
+   "decimalsSource": "implementation-constant",
+   "supplyPolicy": "fixed-at-creation",
+   "initialSupply": "1000000000000000000000000000",
+   "behaviors": [
+    "standard"
+   ],
+   "controls": []
+  }
+ ],
+ "launchLifecycle": {
+  "tokenCreation": {
+   "applicable": true,
+   "actor": "The official token factory mints the full fixed supply to the launcher at creation; no mint, freeze, blacklist or confiscation authority remains.",
+   "valueFlow": "Fixed supply of the launched token is created once and delivered to the liquidity launcher.",
+   "custody": "The launcher holds the initial supply until liquidity formation; the hook never mints or holds initial supply.",
+   "failure": "Creation reverts atomically if the factory parameters are invalid; no partial supply is created.",
+   "event": "Standard token creation and factory events identify the exact token address.",
+   "notApplicableReason": null
+  },
+  "poolInitialization": {
+   "applicable": true,
+   "actor": "The launcher initializes exactly one canonical PoolKey containing the immutable quote currency (WETH); _afterInitialize records tknCurrency (the non-quote side), binds the single PoolId, requires a DYNAMIC-FEE pool, sets the initial LP fee via updateDynamicLPFee, and initializes lastTick/ewmaVol to zero.",
+   "valueFlow": "No value moves at initialization; the hook records the canonical PoolId and tknCurrency, sets the base LP fee, and initializes volatility tracking state (lastTick, ewmaVol). programmableFeeOwed and projectFeeOwed start at zero (default).",
+   "custody": "No custody at initialization.",
+   "failure": "_afterInitialize reverts NotQuotePool if the pool does not contain the immutable quote currency, NotDynamicFee if the pool is not a dynamic-fee pool, and PoolAlreadyBound on any second initialization, so exactly one canonical pool binds this hook.",
+   "event": "No event is emitted in _afterInitialize; the bound canonical PoolId and tknCurrency are readable via the poolId() and tknCurrency() getters.",
+   "notApplicableReason": null
+  },
+  "liquidityFormation": {
+   "applicable": true,
+   "actor": "The launcher adds initial concentrated liquidity through the standard position manager; the hook has no add/remove-liquidity callbacks enabled.",
+   "valueFlow": "WETH and the launched token form the initial concentrated-liquidity position owned by the launcher or its LPs.",
+   "custody": "Liquidity is owned by standard v4 LP positions, never by the hook; pool liquidity is excluded from hook custody.",
+   "failure": "A failed add reverts without affecting the hook's liability state.",
+   "event": "Standard PoolManager ModifyLiquidity events.",
+   "notApplicableReason": null
+  },
+  "initialTransaction": {
+   "applicable": true,
+   "actor": "The first swap runs the hook's beforeSwap and afterSwap paths; ewmaVol starts at zero so the first swap's LP fee equals the base fee.",
+   "valueFlow": "The volume charge begins accruing to the platform liability (programmableFeeOwed) and project liability (projectFeeOwed) from the first executed swap.",
+   "custody": "programmableFeeOwed and projectFeeOwed begin accumulating as hook-held ERC-6909 quote (WETH) claims.",
+   "failure": "Any accrual arithmetic or settlement failure reverts the first swap atomically.",
+   "event": "ProgrammableFeeCollected.",
+   "notApplicableReason": null
+  },
+  "trading": {
+   "applicable": true,
+   "actor": "Traders swap in both directions through standard v4 routers; the AMM executes the full swap and the hook accrues the volume charge every swap and updates the volatility state after each swap.",
+   "valueFlow": "Buys and sells pay the hook volume charge (10 bps platform + project remainder); the LP fee auto-calibrates to realized volatility measured from tick movement between swaps.",
+   "custody": "programmableFeeOwed and projectFeeOwed are hook-held ERC-6909 quote (WETH) claims; each liability is claimable only by its respective beneficiary (owner or project). No token-side custody.",
+   "failure": "Any fee take/settle, cap or checked-conversion failure reverts the swap atomically.",
+   "event": "ProgrammableFeeCollected.",
+   "notApplicableReason": null
+  },
+  "feesAndClaims": {
+   "applicable": true,
+   "actor": "The authenticated PoolManager callback accrues both the platform liability (programmableFeeOwed) and the project liability (projectFeeOwed); only the immutable Programmable owner can claim the platform liability via claimProgrammableFee, and only the immutable PROJECT can claim the project liability via claimProjectFee.",
+   "valueFlow": "10 bps of executed gross quote-side volume accrues as an owner-only claimable liability; the project remainder (effective - 1000) accrues as a project-only claimable liability; both are claimable anytime by their respective beneficiaries.",
+   "custody": "The hook holds both liabilities as ERC-6909 quote (WETH) claims; each liability is keyed by (poolId,currency) and claimable only by its beneficiary.",
+   "failure": "A claim by a non-owner (NotOwner) or non-project (NotProject) or to the zero address (InvalidDestination) reverts; a zero owed amount is a no-op emit.",
+   "event": "ProgrammableFeeClaimed for owner claims; ProjectFeeClaimed for project claims; ProgrammableFeeCollected for accrual.",
+   "notApplicableReason": null
+  },
+  "dependencyFailure": {
+   "applicable": true,
+   "actor": "The only onchain dependency is the immutable v4 PoolManager and the standard WETH contract (claim payout); there is no external price source, keeper, bridge or upgrade dependency.",
+   "valueFlow": "If PoolManager reverts, the whole swap reverts atomically and no liability changes.",
+   "custody": "Liabilities remain exactly as last settled; nothing is stranded.",
+   "failure": "The hook fails closed: any dependency failure reverts the action rather than continuing in a degraded state.",
+   "event": "No new event on a reverted action.",
+   "notApplicableReason": null
+  },
+  "retirement": {
+   "applicable": true,
+   "actor": "There is no admin retirement; the hook, volatility mechanics, fee rates and parameters are immutable, and any new behavior would ship as a new model version with a new pool.",
+   "valueFlow": "Swaps continue to accrue volume fees to the two liabilities for the life of the pool; both beneficiaries can claim their liabilities at any time.",
+   "custody": "Liabilities stay with the hook until claimed by their respective beneficiaries.",
+   "failure": "No migration path can alter the fee mechanics or redirect liabilities to a third party.",
+   "event": "No retirement event; the pool remains live and immutable.",
+   "notApplicableReason": null
+  }
+ },
+ "pool": {
+  "currency0": "weth",
+  "currency1": "vol-token",
+  "orderingRule": "Mine the launched-token CREATE2 salt so its address sorts after mainnet WETH (WETH = currency0, token = currency1); the hook address is mined so its permission bits match the enabled callbacks. The pool is a DYNAMIC-FEE pool (fee = DYNAMIC_FEE_FLAG).",
+  "tickSpacing": 60,
+  "lpFee": {
+   "classification": "lp-fee",
+   "mode": "dynamic",
+   "hundredthsOfBip": null,
+   "initialHundredthsOfBip": 3000,
+   "initializationPath": "afterInitialize-updateDynamicLPFee",
+   "applicationMode": "hybrid",
+   "overrideFlagPolicy": "Each beforeSwap returns the computed fee ORed with LPFeeLibrary.OVERRIDE_FEE_FLAG (0x400000), applying it to that swap only; the canonical pool is a dynamic-fee pool (fee = 0x800000), and afterInitialize reverts NotDynamicFee for any non-dynamic pool.",
+   "persistentUpdateActor": "the hook itself; there is no external or privileged updater. afterInitialize sets the immutable base fee once; each swap self-adjusts via the per-swap override.",
+   "persistentUpdateCallSites": [
+    "afterInitialize",
+    "beforeSwap",
+    "afterSwap"
+   ],
+   "rateLimit": "At most one fee computation per swap (read) and one volatility-state update per swap (write); no external cadence and no privileged setter.",
+   "updatePath": "afterInitialize calls poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE) once to set the immutable base fee; every beforeSwap returns a per-swap OVERRIDE_FEE_FLAG fee = VolMath.feeFromVol(ewmaVol, base, k, minLpFee, maxLpFee) computed from the stored EWMA volatility; every afterSwap recomputes ewmaVol from the executed post-swap tick move for FUTURE swaps.",
+   "minimum": 500,
+   "maximum": 100000,
+   "inputMetric": "Realized volatility: an EWMA of the absolute per-swap tick delta |tickNow - tickPrev|, sampled once per swap from the pool's own post-swap tick (poolManager.getSlot0). No external metric.",
+   "referenceAsset": "The pool's own price (tick). There is no external price source, price source or reference asset.",
+   "measurementUnit": "Ticks (absolute tick delta per swap), smoothed by an integer EWMA with an immutable alpha in basis points.",
+   "observationMode": "time-weighted",
+   "observationWindow": "Exponentially-weighted moving average with an immutable alpha (basis points); the effective window is ~1/alpha swaps. There is no fixed time window and no stored history array.",
+   "curve": "lpFee = clamp(baseFee + kNumerator * ewmaVol / kDenominator, minLpFee, maxLpFee). Monotonic non-decreasing in volatility, bounded to [minLpFee, maxLpFee], with overflow guards that clamp to maxLpFee.",
+   "updateCadence": "Per swap: the fee is READ in beforeSwap from the volatility state accumulated by prior swaps; the state is UPDATED in afterSwap from this swap's realized tick move. Reads and writes never occur in the same phase.",
+   "liquidityDecreaseBehavior": "The fee is volatility-driven and independent of the pool's liquidity level; adding or removing liquidity does not move the tick and therefore does not change the fee formula, the volatility state or the immutable bounds.",
+   "manipulationResistance": "The LP fee charged on swap N is computed in beforeSwap from the EWMA volatility accumulated by swaps BEFORE N; the EWMA is updated only afterwards in afterSwap. A trader therefore cannot lower their own swap's fee with their own trade. Manufacturing volatility to raise other traders' fees costs the mandatory volume fee on every swap and moves the price against the manipulator, and the fee is hard-bounded to [minLpFee, maxLpFee] (maxLpFee < 100%, so exact-output stays supported).",
+   "failureRule": "VolMath.feeFromVol reverts only on invalid immutable parameters at construction (BadVolParams / BadInitialFee); at swap time it is pure arithmetic with overflow guards that clamp to maxLpFee, so a per-swap fee computation can neither revert the swap nor leave the immutable bounds.",
+   "recipient": "pool-liquidity-providers"
+  },
+  "canonical": true,
+  "alternativePools": "Alternative pools may exist but do not inherit the dynamic-fee behavior, the volatility state or the mandatory-fee accounting. Only the canonical launcher-emitted WETH/token dynamic-fee PoolKey bound at afterInitialize is the VolFee pool."
+ },
+ "programmableFee": {
+  "policyId": "programmable-volume-fee-v1",
+  "policyVersion": "1.0.0",
+  "poolScope": "canonical-launch-pool-key",
+  "rates": {
+   "unit": "hundredths-of-bip",
+   "selectedHundredthsOfBip": 3000,
+   "minimumEffectiveHundredthsOfBip": 1000,
+   "effectiveHundredthsOfBip": 3000,
+   "platformHundredthsOfBip": 1000,
+   "projectHundredthsOfBip": 2000,
+   "formula": "effective=max(selected,1000);platform=1000;project=effective-1000",
+   "lpFeeExcluded": true
+  },
+  "basis": {
+   "volume": "gross-quote-side-swap-volume",
+   "quoteAsset": "canonical-pool-quote-asset"
+  },
+  "ownership": {
+   "owner": "0x4957f49620AFf3Adbbe8195a4f633E49cc93376c",
+   "immutable": true,
+   "claimAuthority": "owner-only",
+   "claimAvailability": "anytime",
+   "claimDestinationPolicy": "owner-or-owner-selected-per-claim",
+   "storedMutableRecipient": false,
+   "builderCanMutate": false,
+   "projectCanMutate": false,
+   "administratorCanMutate": false
+  },
+  "collection": {
+   "status": "implemented",
+   "integration": "canonical-pool-hook",
+   "enforcement": "non-bypassable",
+   "hookFeeMechanismBinding": "hook.feeMechanism",
+   "supportedSwapModes": [
+    "zeroForOne-exactInput",
+    "zeroForOne-exactOutput",
+    "oneForZero-exactInput",
+    "oneForZero-exactOutput"
+   ],
+   "swapModePaths": {
+    "zeroForOneExactInput": "before-swap-return-delta",
+    "zeroForOneExactOutput": "after-swap-return-delta",
+    "oneForZeroExactInput": "after-swap-return-delta",
+    "oneForZeroExactOutput": "before-swap-return-delta"
+   },
+   "selfCallPolicy": "same-pool-swap-forbidden"
+  },
+  "accounting": {
+   "accrualMode": "claimable-liability",
+   "liabilityKeyDimensions": [
+    "poolId",
+    "currency",
+    "owner"
+   ],
+   "crossPoolNetting": false,
+   "valueFlowId": "swap-volume-charge",
+   "collectionEvent": "ProgrammableFeeCollected(PoolId indexed poolId,Currency indexed currency,uint256 platformAmount,uint256 projectAmount)",
+   "claimEvent": "ProgrammableFeeClaimed(PoolId indexed poolId,Currency indexed currency,address indexed destination,uint256 amount)"
+  },
+  "evidence": {
+   "sourcePaths": [
+    "src/VolFeeHook.sol",
+    "src/lib/VolMath.sol"
+   ],
+   "testPaths": [
+    "test/ProgrammableFee.t.sol",
+    "test/VolAdaptiveFee.t.sol",
+    "test/VolMath.t.sol",
+    "test/fork/VolFeeFork.t.sol",
+    "test/invariant/VolFeeInvariant.t.sol"
+   ]
+  }
+ },
+ "hook": {
+  "used": true,
+  "base": "openzeppelin-uniswap-hooks BaseHook (pinned), project-specific fee + volatility accounting",
+  "upgradeable": false,
+  "sharedAcrossPools": false,
+  "poolNamespace": "One hook instance backs exactly one canonical launch PoolKey; all liability state is keyed by that single PoolId.",
+  "poolAdmission": {
+   "enforcement": "_afterInitialize binds the FIRST initialized PoolKey that contains the immutable quoteCurrency (recording tknCurrency and poolId) and reverts every later initialization with PoolAlreadyBound; a pool without the quote currency reverts NotQuotePool; a non-dynamic-fee pool reverts NotDynamicFee.",
+   "factoryOrRegistry": "The launcher initializes exactly one canonical WETH-paired PoolKey whose hooks field is this mined hook address; the hook self-binds the first such PoolId at _afterInitialize (no separate factory registry or provenance hash is used).",
+   "alternativePoolBehavior": "Once bound, any second pool referencing this hook address reverts PoolAlreadyBound at initialization; pools without this hook are unaffected and never inherit fee or volatility behavior.",
+   "rejectionRule": "Revert NotQuotePool for a PoolKey lacking the quote currency, NotDynamicFee for a non-dynamic-fee pool, and PoolAlreadyBound for any initialization after the first."
+  },
+  "permissions": {
+   "beforeInitialize": false,
+   "afterInitialize": true,
+   "beforeAddLiquidity": false,
+   "afterAddLiquidity": false,
+   "beforeRemoveLiquidity": false,
+   "afterRemoveLiquidity": false,
+   "beforeSwap": true,
+   "afterSwap": true,
+   "beforeDonate": false,
+   "afterDonate": false,
+   "beforeSwapReturnDelta": true,
+   "afterSwapReturnDelta": true,
+   "afterAddLiquidityReturnDelta": false,
+   "afterRemoveLiquidityReturnDelta": false
+  },
+  "callbackPolicies": [
+   {
+    "callback": "afterInitialize",
+    "necessity": "Binds the single canonical PoolId and records tknCurrency (the non-quote side) on the first pool containing the quote currency; requires a DYNAMIC-FEE pool, sets the initial LP fee via updateDynamicLPFee, and initializes lastTick/ewmaVol.",
+    "allowedReverts": "NotQuotePool if the pool lacks the quote currency, NotDynamicFee if the pool is not a dynamic-fee pool, or PoolAlreadyBound on a second initialization; the first valid quote-pool initialization never reverts.",
+    "userExitImpact": "Initialization does not affect any user exit; liquidity removal and swaps remain available afterward.",
+    "noSelfCallImpact": "afterInitialize performs no swap, liquidity action or nested PoolManager call that re-enters this hook."
+   },
+   {
+    "callback": "beforeSwap",
+    "necessity": "For before-quadrants (the quote is the swap's specified currency) it mints the total fee as quote ERC-6909 claims and returns it as a positive beforeSwapReturnDelta on the specified currency, so v4 carves the fee out of the swap. For after-quadrants it returns a zero delta (the fee is collected in afterSwap). It also returns the per-swap LP fee override computed from the current ewmaVol (before this swap's update).",
+    "allowedReverts": "Only a checked uint256->int128 conversion or a fee take failure may revert the complete swap.",
+    "userExitImpact": "The callback only carves the small fee and never blocks a buy, a sell, or liquidity removal.",
+    "noSelfCallImpact": "The fee take mints the hook's own quote claims and never initiates a same-pool swap, so v4 skips no required callback."
+   },
+   {
+    "callback": "afterSwap",
+    "necessity": "Reads the executed swap BalanceDelta; for after-quadrants it accrues the volume charge (10 bps platform liability + project remainder) from the executed gross quote-side amount; it updates ewmaVol and lastTick from the executed post-swap tick (poolManager.getSlot0) for FUTURE swaps.",
+    "allowedReverts": "Only accrual arithmetic or a checked uint256->int128 conversion or a fee take failure may revert the complete swap.",
+    "userExitImpact": "The fee affects swaps only; standard liquidity removal is never blocked.",
+    "noSelfCallImpact": "afterSwap only mints its own quote claims via take and does not initiate another swap or liquidity action on this pool."
+   }
+  ],
+  "hookData": {
+   "used": false,
+   "schema": null,
+   "identitySource": null,
+   "trustedRouterDeploymentRecordId": null,
+   "callbackSenderRule": null,
+   "validation": null
+  },
+  "feeMechanism": {
+   "used": true,
+   "classification": "hook-owned-fee",
+   "chargedCurrency": "WETH (currency0, the immutable quote asset) charged on the executed gross quote-side amount of every swap. The predicate is: collect BEFORE iff the quote is the swap's specified currency, else AFTER.",
+   "swapQuadrants": {
+    "zeroForOneExactInput": {
+     "currency": "currency0",
+     "basis": "gross-input",
+     "formula": "BUY exact-in: quote (currency0/WETH) is the specified input. total = ceil(|amountSpecified| * effectiveRate / 1e6); platform = ceil(|amountSpecified| * 1000 / 1e6); project = total - platform. Minted as quote ERC-6909 claims and returned as a positive beforeSwapReturnDelta on the specified currency0, so v4 carves `total` out of the swapped input.",
+     "rounding": "up",
+     "maximumHundredthsOfBip": 3000
+    },
+    "zeroForOneExactOutput": {
+     "currency": "currency0",
+     "basis": "gross-input",
+     "formula": "BUY exact-out: quote (currency0/WETH) is the unspecified input, known only post-swap. total = ceil(executedWethIn * effectiveRate / 1e6) where executedWethIn is read from the swap BalanceDelta; taken after the core swap as a positive afterSwap return delta on the unspecified currency0.",
+     "rounding": "up",
+     "maximumHundredthsOfBip": 3000
+    },
+    "oneForZeroExactInput": {
+     "currency": "currency0",
+     "basis": "gross-output",
+     "formula": "SELL exact-in: quote (currency0/WETH) is the unspecified output. total = ceil(ammQuoteOut * effectiveRate / 1e6) where ammQuoteOut is the executed WETH output read from the swap BalanceDelta; taken after the core swap.",
+     "rounding": "up",
+     "maximumHundredthsOfBip": 3000
+    },
+    "oneForZeroExactOutput": {
+     "currency": "currency0",
+     "basis": "gross-output",
+     "formula": "SELL exact-out: quote (currency0/WETH) is the specified output. total = ceil(|amountSpecified| * effectiveRate / 1e6); returned as a positive beforeSwapReturnDelta on the specified currency0 so v4 produces `total` extra output for the hook.",
+     "rounding": "up",
+     "maximumHundredthsOfBip": 3000
+    }
+   },
+   "maximumHundredthsOfBip": 3000,
+   "collectionPath": "quadrant-dependent-swap-return-delta",
+   "collectionValueFlowId": "swap-volume-charge",
+   "liabilityKeyDimensions": [
+    "poolId",
+    "currency",
+    "beneficiary"
+   ],
+   "collectionEvent": "ProgrammableFeeCollected(PoolId indexed poolId,Currency indexed currency,uint256 platformAmount,uint256 projectAmount)",
+   "recipients": [
+    {
+     "role": "programmable-platform",
+     "sharePpm": 333333,
+     "addressSource": "fixed-address",
+     "address": "0x4957f49620AFf3Adbbe8195a4f633E49cc93376c",
+     "binding": "exact-address",
+     "derivationRule": null,
+     "mutable": false,
+     "mutationController": "none",
+     "newAddressValidation": "none",
+     "mutationEvent": null
+    },
+    {
+     "role": "Project fee liability (hook custody, project portion)",
+     "sharePpm": 666667,
+     "addressSource": "derived-contract",
+     "address": null,
+     "binding": "immutable-derived-contract",
+     "derivationRule": "The project portion (total - platform) is credited to projectFeeOwed held by the hook as ERC-6909 quote (WETH) claims in PoolManager. It is never withdrawable by any admin, builder or platform role and only leaves by the PROJECT beneficiary claiming via claimProjectFee.",
+     "mutable": false,
+     "mutationController": "none",
+     "newAddressValidation": "none",
+     "mutationEvent": null
+    }
+   ],
+   "ownership": "The 10 bps platform portion is an immutable claimable liability (programmableFeeOwed) owned solely by 0x4957f49620AFf3Adbbe8195a4f633E49cc93376c. The project portion is an immutable claimable liability (projectFeeOwed) owned solely by the immutable PROJECT address. No admin, builder or other role can withdraw, mutate or redirect either portion.",
+   "claimPolicy": "Only the immutable Programmable owner may claim the platform liability via claimProgrammableFee, to itself or an owner-selected destination per claim. Only the immutable PROJECT may claim the project liability via claimProjectFee, to itself or a project-selected destination per claim."
+  },
+  "customAccounting": {
+   "used": true,
+   "backingSource": "The hook holds both liabilities (programmableFeeOwed and projectFeeOwed) as quote (WETH) accrued from the volume fee, custodied as the hook's ERC-6909 quote claims in PoolManager. Every claim is funded by burning the corresponding claims; the hook can pay a claim of at most its held claims and never returns an unbacked or no-op delta.",
+   "conservationEquation": "hook ERC-6909 quote-claim balance == programmableFeeOwed + projectFeeOwed exactly after every swap and every claim (>= as the safety bound); programmableFeeOwed >= 0; projectFeeOwed >= 0.",
+   "settlement": "Within one PoolManager unlock: beforeSwap collects the fee for before-quadrants (quote specified); afterSwap reads the executed swap BalanceDelta, collects the fee for after-quadrants (quote unspecified), and updates the volatility state. Fee accrual nets into one unspecified-currency int128. All hook transient deltas net to zero before the unlock ends.",
+   "partialFillBehavior": "The fee accrues only on the EXECUTED quote amount (from the swap delta), never the requested |amountSpecified| — a price-limited partial fill cannot be over-charged. The fee accrues only on the executed ammQuoteOut, never on any other amount (fairness invariant).",
+   "liabilityNamespace": "programmableFeeOwed and projectFeeOwed are each a mapping(PoolId => mapping(Currency => uint256)); there is no token-side ledger.",
+   "liabilityKeyDimensions": [
+    "poolId",
+    "currency",
+    "beneficiary"
+   ],
+   "crossPoolNetting": false,
+   "duplicateCurrencyPolicy": "Only one canonical pool binds per hook instance, so there is no shared-currency cross-pool aggregation. Quote held for the platform liability (programmableFeeOwed) is accounted separately from quote held for the project liability (projectFeeOwed).",
+   "failureIsolation": "Any failed take/settle, checked uint256->int128 conversion or arithmetic reverts the entire swap atomically; no partial or unfunded liability is ever recorded.",
+   "withdrawalOrdering": "claimProgrammableFee checks msg.sender == OWNER and a nonzero destination, zeroes programmableFeeOwed[poolId][currency], then (if nonzero) opens a PoolManager unlock to burn the hook's quote claims and take the underlying to the destination; claimProjectFee does the same for projectFeeOwed with msg.sender == PROJECT."
+  },
+  "returnDeltaAccounting": {
+   "used": true,
+   "quadrants": {
+    "zeroForOneExactInput": {
+     "supported": true,
+     "specifiedCurrency": "currency0",
+     "unspecifiedCurrency": "currency1",
+     "amountSign": "negative-exact-input",
+     "specifiedComponent": {
+      "mode": "positive-only",
+      "formula": "BUY exact-in: total = ceil(|amountSpecified| * effectiveRate / 1e6) returned as a positive specified (currency0/WETH) delta so only (|amountSpecified| - total) enters the core swap.",
+      "minimum": "zero base units of currency0 when the executed input is zero, producing no fee",
+      "maximum": "ceil(|amountSpecified| * effectiveRate / 1e6) which for effectiveRate <= 3000 is a small fraction of the input, so the fee never consumes the entire input",
+      "minimumSign": "zero",
+      "maximumSign": "positive",
+      "positiveSettlementActions": [
+       {
+        "order": 1,
+        "actor": "hook",
+        "operation": "take",
+        "currency": "specified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "negative",
+        "counterparty": "hook",
+        "authorizationRule": "onlyPoolManager callback",
+        "msgValueRule": null,
+        "amountRule": "quoteCurrency.take(poolManager, hook, total, true): mint `total` of the specified currency0 as ERC-6909 claims to the hook.",
+        "completionDeadline": "before-hook-return"
+       },
+       {
+        "order": 2,
+        "actor": "hook",
+        "operation": "internal-ledger-update",
+        "currency": "specified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "none",
+        "counterparty": "not-applicable",
+        "authorizationRule": null,
+        "msgValueRule": null,
+        "amountRule": "Credit platform = ceil(|amountSpecified|*1000/1e6) to programmableFeeOwed and project = total - platform to projectFeeOwed.",
+        "completionDeadline": "before-hook-return"
+       }
+      ],
+      "negativeSettlementActions": []
+     },
+     "unspecifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "residualAmmEquation": "amountSpecified-plus-specifiedDelta",
+     "finalCallerDeltaEquation": "pool-manager-swap-delta-minus-hook-delta",
+     "specifiedDeltaCanConsumeEntireAmount": false,
+     "rounding": "The fee ceils on the specified side (protocol favor); the platform 10 bps ceils and project = total - platform, so platform + project == total exactly.",
+     "zeroAmmLeg": "forbidden",
+     "partialFillRule": "The fee is taken only from the executed specified amount; an unfilled amount is not charged.",
+     "slippageInvariant": "The router enforces the trader's minimum token output against the final caller delta after the fee.",
+     "failureRule": "Zero input returns zero fee; any checked-conversion or take failure reverts the whole swap."
+    },
+    "zeroForOneExactOutput": {
+     "supported": true,
+     "specifiedCurrency": "currency1",
+     "unspecifiedCurrency": "currency0",
+     "amountSign": "positive-exact-output",
+     "specifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "unspecifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "residualAmmEquation": "amountSpecified-plus-specifiedDelta",
+     "finalCallerDeltaEquation": "pool-manager-swap-delta-minus-hook-delta",
+     "specifiedDeltaCanConsumeEntireAmount": false,
+     "rounding": "No beforeSwap delta in this quadrant; the fee is charged after the swap on the unspecified currency0 and rounds up.",
+     "zeroAmmLeg": "forbidden",
+     "partialFillRule": "The fee is computed after the swap from the executed currency0 input only.",
+     "slippageInvariant": "The router enforces the trader's maximum input against the final caller delta after the after-swap fee.",
+     "failureRule": "Any cap breach, take, split or claim failure reverts the whole swap."
+    },
+    "oneForZeroExactInput": {
+     "supported": true,
+     "specifiedCurrency": "currency1",
+     "unspecifiedCurrency": "currency0",
+     "amountSign": "negative-exact-input",
+     "specifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "unspecifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "residualAmmEquation": "amountSpecified-plus-specifiedDelta",
+     "finalCallerDeltaEquation": "pool-manager-swap-delta-minus-hook-delta",
+     "specifiedDeltaCanConsumeEntireAmount": false,
+     "rounding": "beforeSwap returns no delta in this quadrant; the whole sell reaches the core AMM (full AMM leg). The fee is handled in afterSwap on the unspecified currency0 (see postReturnDeltaAccounting.afterSwap) with ceil fee rounding.",
+     "zeroAmmLeg": "forbidden",
+     "partialFillRule": "No beforeSwap carve-out here, so the AMM always executes the full requested sell (subject to liquidity/price limit); the fee in afterSwap is sized on the executed quote output.",
+     "slippageInvariant": "The router enforces the seller's minimum output against the final caller delta after the afterSwap fee.",
+     "failureRule": "No beforeSwap failure path in this quadrant; the afterSwap fee failure rules apply."
+    },
+    "oneForZeroExactOutput": {
+     "supported": true,
+     "specifiedCurrency": "currency0",
+     "unspecifiedCurrency": "currency1",
+     "amountSign": "positive-exact-output",
+     "specifiedComponent": {
+      "mode": "positive-only",
+      "formula": "SELL exact-out: total = ceil(|amountSpecified| * effectiveRate / 1e6) on the specified currency0 (WETH) output, returned as a positive beforeSwapReturnDelta so v4 produces `total` extra WETH output for the hook; the seller receives the requested exact output and the fee is carved from the pool.",
+      "minimum": "zero base units of currency0 when the executed output is zero, producing no fee",
+      "maximum": "ceil(|amountSpecified| * effectiveRate / 1e6), a small fraction of the requested output for effectiveRate <= 3000",
+      "minimumSign": "zero",
+      "maximumSign": "positive",
+      "positiveSettlementActions": [
+       {
+        "order": 1,
+        "actor": "hook",
+        "operation": "take",
+        "currency": "specified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "negative",
+        "counterparty": "hook",
+        "authorizationRule": "onlyPoolManager callback",
+        "msgValueRule": null,
+        "amountRule": "quoteCurrency.take(poolManager, hook, total, true): mint `total` of the specified currency0 as ERC-6909 claims to the hook.",
+        "completionDeadline": "before-hook-return"
+       },
+       {
+        "order": 2,
+        "actor": "hook",
+        "operation": "internal-ledger-update",
+        "currency": "specified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "none",
+        "counterparty": "not-applicable",
+        "authorizationRule": null,
+        "msgValueRule": null,
+        "amountRule": "Credit platform = ceil(|amountSpecified|*1000/1e6) to programmableFeeOwed and project = total - platform to projectFeeOwed.",
+        "completionDeadline": "before-hook-return"
+       }
+      ],
+      "negativeSettlementActions": []
+     },
+     "unspecifiedComponent": {
+      "mode": "zero-only",
+      "formula": null,
+      "minimum": "0",
+      "maximum": "0",
+      "minimumSign": "zero",
+      "maximumSign": "zero",
+      "positiveSettlementActions": [],
+      "negativeSettlementActions": []
+     },
+     "residualAmmEquation": "amountSpecified-plus-specifiedDelta",
+     "finalCallerDeltaEquation": "pool-manager-swap-delta-minus-hook-delta",
+     "specifiedDeltaCanConsumeEntireAmount": false,
+     "rounding": "The fee ceils on the specified currency0 output (protocol favor); the unspecified token side carries no hook delta.",
+     "zeroAmmLeg": "forbidden",
+     "partialFillRule": "The fee is computed from the requested exact currency0 output; exact-output either fills the exact output or reverts.",
+     "slippageInvariant": "The router enforces the seller's maximum token input against the final caller delta after the fee.",
+     "failureRule": "Any checked-conversion or take failure reverts the whole swap."
+    }
+   },
+   "executionEvent": "ProgrammableFeeCollected(PoolId indexed poolId,Currency indexed currency,uint256 platformAmount,uint256 projectAmount)"
+  },
+  "postReturnDeltaAccounting": {
+   "afterSwap": {
+    "used": true,
+    "returnedDeltaShape": "unspecified-currency-int128",
+    "positiveMeaning": "hook-credit-caller-debit",
+    "negativeMeaning": "hook-debt-caller-credit",
+    "backingSource": "The afterSwap delta on the unspecified (quote) currency is the feeDelta from the executed unspecified quote, split into programmableFeeOwed and projectFeeOwed.",
+    "callerDeltaEquation": "protocol-delta-minus-hook-delta",
+    "componentPolicies": {
+     "unspecified": {
+      "mode": "positive-only",
+      "formula": "feeDelta on the unspecified (quote) currency. feeDelta = ceil(executedGrossQuote * effectiveRate / 1e6) >= 0 (after-quadrants: exact-output buy and exact-input sell).",
+      "minimum": "zero when no fee is due (zero executed amount)",
+      "maximum": "positive up to ceil(effectiveRate/1e6 * executed gross quote) = at most 30 bps of the executed gross quote-side amount",
+      "minimumSign": "zero",
+      "maximumSign": "positive",
+      "positiveSettlementActions": [
+       {
+        "order": 1,
+        "actor": "hook",
+        "operation": "take",
+        "currency": "unspecified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "negative",
+        "counterparty": "hook",
+        "authorizationRule": "onlyPoolManager callback",
+        "msgValueRule": null,
+        "amountRule": "quoteCurrency.take(poolManager, hook, total, true): mint total = ceil(executedGrossQuote*effectiveRate/1e6) of the unspecified currency0 as ERC-6909 claims to the hook.",
+        "completionDeadline": "before-hook-return"
+       },
+       {
+        "order": 2,
+        "actor": "hook",
+        "operation": "internal-ledger-update",
+        "currency": "unspecified",
+        "assetKind": "erc20",
+        "deltaOwner": "hook",
+        "deltaEffect": "none",
+        "counterparty": "not-applicable",
+        "authorizationRule": null,
+        "msgValueRule": null,
+        "amountRule": "Credit platform = ceil(executedGrossQuote*1000/1e6) to programmableFeeOwed and project = total - platform to projectFeeOwed.",
+        "completionDeadline": "before-hook-return"
+       }
+      ],
+      "negativeSettlementActions": []
+     },
+     "currency0": null,
+     "currency1": null
+    },
+    "bounds": "The positive part never exceeds 30 bps of executed gross quote volume; hook ERC-6909 quote balance == programmableFeeOwed + projectFeeOwed remains exact (solvent by construction).",
+    "rounding": "Fee amounts ceil (protocol favor); project = total - platform, so platform + project == total exactly; uint256 -> int128 conversions are checked (SafeCast).",
+    "slippageOrMinimums": "The router applies the trader's minimum output or maximum input to the final caller delta after the fee.",
+    "failureRule": "A zero executed amount yields zero fee; any checked-conversion, take or settle failure reverts the entire swap.",
+    "executionEvent": "ProgrammableFeeCollected(PoolId indexed poolId,Currency indexed currency,uint256 platformAmount,uint256 projectAmount) on accrual."
+   },
+   "afterAddLiquidity": {
+    "used": false,
+    "returnedDeltaShape": null,
+    "positiveMeaning": null,
+    "negativeMeaning": null,
+    "backingSource": null,
+    "callerDeltaEquation": null,
+    "componentPolicies": {
+     "unspecified": null,
+     "currency0": null,
+     "currency1": null
+    },
+    "bounds": null,
+    "rounding": null,
+    "slippageOrMinimums": null,
+    "failureRule": null,
+    "executionEvent": null
+   },
+   "afterRemoveLiquidity": {
+    "used": false,
+    "returnedDeltaShape": null,
+    "positiveMeaning": null,
+    "negativeMeaning": null,
+    "backingSource": null,
+    "callerDeltaEquation": null,
+    "componentPolicies": {
+     "unspecified": null,
+     "currency0": null,
+     "currency1": null
+    },
+    "bounds": null,
+    "rounding": null,
+    "slippageOrMinimums": null,
+    "failureRule": null,
+    "executionEvent": null
+   }
+  },
+  "erc6909Claims": {
+   "used": true,
+   "currencyIdDerivation": "currency-address-uint160",
+   "claimBalanceScope": "claim-owner-and-currency",
+   "poolIdIncludedInClaimId": false,
+   "owner": "The hook contract owns all ERC-6909 quote (WETH) claims backing programmableFeeOwed and projectFeeOwed. No token-side claims are held.",
+   "operatorPolicy": "The hook sets no ERC-6909 operator; no external operator can move the hook's claims.",
+   "mintFlow": "The fee is taken with claims=true (CurrencySettler.take), minting quote ERC-6909 claims to the hook; the platform slice increments programmableFeeOwed and the project slice increments projectFeeOwed.",
+   "burnFlow": "An owner claim settles/burns quote claims from programmableFeeOwed inside a PoolManager unlock, then takes the underlying to the destination; a project claim does the same for projectFeeOwed.",
+   "takeSettleFlow": "take(claims=true) to mint and settle(burn=true) to burn within one unlock; the hook's transient deltas net to zero before unlock end. The claim paths open their own PoolManager unlocks (unlockCallback) to settle then take the underlying.",
+   "liabilityKeys": "programmableFeeOwed and projectFeeOwed each keyed by (poolId, currency); beneficiary in {programmable-owner, project}.",
+   "liabilityKeyDimensions": [
+    "poolId",
+    "currency",
+    "beneficiary"
+   ],
+   "crossPoolNetting": false,
+   "transferPolicy": "The hook never transfers claims to third parties; claims leave only via an owner claim (platform liability) or a project claim (project liability).",
+   "redemption": "Platform claims are burned to pay the owner-selected destination on claim; project claims are burned to pay the project-selected destination on claim.",
+   "roundingDust": "Fee amounts ceil, and project = total - platform, so platform + project == total exactly with no leftover dust; project == 0 exactly when effective == 1000.",
+   "aggregateSolvencyEquation": "For the quote currency: hook ERC-6909 quote balance in PoolManager == programmableFeeOwed + projectFeeOwed at every confirmed block (>= as the safety bound); pool LP liquidity is excluded from hook custody."
+  },
+  "nestedActions": {
+   "used": false,
+   "directPoolManagerCalls": false,
+   "routerCalls": false,
+   "allowedActions": [],
+   "samePoolPolicy": "The hook never calls swap, modify-liquidity or donate on its own pool (it contains no poolManager.swap). It only mints/burns its own quote claims (fee take with claims=true, claim settle with burn=true) inside the swap callbacks; the claim paths open their own PoolManager unlocks (unlockCallback) to burn the claim and take the underlying to the destination.",
+   "crossPoolPolicy": "The hook touches no other pool and holds no cross-pool state.",
+   "callbackSuppression": "Take, settle and the claim unlocks do not re-enter the hook's swap or liquidity callbacks; v4 additionally no-ops hook callbacks on self-calls.",
+   "directCallbackBehavior": "self-call-hook-callbacks-skipped",
+   "routerCallbackBehavior": null,
+   "maximumDepth": 1,
+   "stateCommitOrder": "afterSwap reads the executed swap BalanceDelta, collects the after-quadrant fee, then updates ewmaVol and lastTick, all within the same unlock before the returned net delta is settled.",
+   "transientDeltaOwner": "The hook owns its transient deltas and settles them to zero before the unlock ends.",
+   "syncInterleaving": "CurrencySettler handles ERC-6909 mint (take, claims=true) and burn (settle, burn=true) directly; the claim underlying payout uses settle(burn=true) then take(claims=false) inside its own unlock.",
+   "slippageAggregation": "The router aggregates the final caller delta after the fee.",
+   "failureAtomicity": "Any settlement failure reverts the entire swap; no partial settlement persists."
+  }
+ },
+ "noHookArchitecture": null,
+ "valueFlows": [
+  {
+   "id": "swap-volume-charge",
+   "action": "accrue the hook-owned volume charge",
+   "asset": "canonical quote (WETH, currency0)",
+   "from": "the executed gross quote-side amount",
+   "to": "10 bps platform liability plus project remainder (projectFeeOwed)",
+   "amountRule": "effective = max(selected 3000, 1000) = 3000 hundredths-of-bip on executed gross quote-side volume; total ceils; platform = ceil(gross*1000/1e6); project = total - platform; per-quadrant before/after return delta.",
+   "settlement": "Quadrant-dependent before/after swap return delta takes the quote with claims=true (mint ERC-6909) into the hook and splits it into programmableFeeOwed and projectFeeOwed.",
+   "failure": "Any checked-conversion or take failure reverts the whole swap."
+  },
+  {
+   "id": "programmable-fee-accrual",
+   "action": "accrue the 10 bps platform liability",
+   "asset": "WETH (currency0)",
+   "from": "the platform portion of swap-volume-charge",
+   "to": "the immutable owner claimable liability programmableFeeOwed keyed (poolId,currency)",
+   "amountRule": "platform = ceil(executedGrossQuote * 1000 / 1e6) hundredths-of-bip of the gross quote-side amount.",
+   "settlement": "Credited as a claimable-liability ERC-6909 quote (WETH) claim held by the hook for the immutable owner.",
+   "failure": "Any arithmetic or settlement failure reverts the swap."
+  },
+  {
+   "id": "project-fee-accrual",
+   "action": "accrue the project fee liability",
+   "asset": "WETH (currency0)",
+   "from": "the project portion of swap-volume-charge",
+   "to": "project fee liability projectFeeOwed (hook ERC-6909 quote claims)",
+   "amountRule": "project = total - platform (~2000 hundredths-of-bip of the gross quote-side amount).",
+   "settlement": "Increment projectFeeOwed; the corresponding quote ERC-6909 claim is already minted to the hook by the fee take.",
+   "failure": "Any arithmetic or settlement failure reverts the swap."
+  },
+  {
+   "id": "programmable-fee-claim",
+   "action": "the immutable owner claims the platform liability",
+   "asset": "WETH (currency0)",
+   "from": "the hook platform liability",
+   "to": "the immutable owner 0x4957f49620AFf3Adbbe8195a4f633E49cc93376c or an owner-selected destination",
+   "amountRule": "Exactly the accrued platform liability programmableFeeOwed[poolId][currency], zeroed on claim.",
+   "settlement": "claimProgrammableFee zeroes the liability then, if nonzero, opens a PoolManager unlock to burn the hook's quote claims and take the underlying to the owner-selected destination.",
+   "failure": "A non-owner caller reverts NotOwner; a zero-address destination reverts InvalidDestination; a zero owed amount is a no-op (emits amount 0)."
+  },
+  {
+   "id": "project-fee-claim",
+   "action": "the immutable project claims the project fee liability",
+   "asset": "WETH (currency0)",
+   "from": "the hook project fee liability",
+   "to": "the immutable PROJECT or a project-selected destination",
+   "amountRule": "Exactly the accrued project fee liability projectFeeOwed[poolId][currency], zeroed on claim.",
+   "settlement": "claimProjectFee zeroes the liability then, if nonzero, opens a PoolManager unlock to burn the hook's quote claims and take the underlying to the project-selected destination.",
+   "failure": "A non-project caller reverts NotProject; a zero-address destination reverts InvalidDestination; a zero owed amount is a no-op (emits amount 0)."
+  },
+  {
+   "id": "core-swap-settlement",
+   "action": "settle the core AMM swap",
+   "asset": "WETH and the launched token",
+   "from": "the trader and the pool",
+   "to": "the pool and the trader",
+   "amountRule": "Standard v4 concentrated-liquidity settlement of the FULL swap; the fee is carved via the hook's before/after return delta, so the core AMM leg is always the full swap (never zero).",
+   "settlement": "PoolManager settles the net caller delta at the end of the unlock.",
+   "failure": "Reverts on slippage breach or insufficient liquidity."
+  }
+ ],
+ "authorities": [
+  {
+   "role": "Programmable fee owner",
+   "controller": "0x4957f49620AFf3Adbbe8195a4f633E49cc93376c",
+   "capabilities": [
+    "claim the accrued 10 bps platform WETH liability to itself or an owner-selected destination per claim"
+   ],
+   "mutable": false,
+   "delay": null,
+   "userExitImpact": "Claiming the platform liability never touches LP liquidity or any user's exit."
+  },
+  {
+   "role": "Project fee beneficiary",
+   "controller": "immutable PROJECT address (set at construction)",
+   "capabilities": [
+    "claim the accrued project fee WETH liability to itself or a project-selected destination per claim"
+   ],
+   "mutable": false,
+   "delay": null,
+   "userExitImpact": "Claiming the project fee liability never touches LP liquidity or any user's exit."
+  },
+  {
+   "role": "Immutable launch parameters",
+   "controller": "none (fixed at construction)",
+   "capabilities": [
+    "All fee and volatility parameters are immutable constructor args, fixed once at deployment and never changeable."
+   ],
+   "mutable": false,
+   "delay": null,
+   "userExitImpact": "No party can weaken the fee mechanics or volatility parameters, so the fee and volatility behavior cannot be altered."
+  },
+  {
+   "role": "Test-only public mint (MockToken ERC-20 mock)",
+   "controller": "test/invariant/VolFeeInvariant.t.sol (test file only)",
+   "capabilities": [
+    "Test-only mint on a MockToken in the invariant test; the launched VOL token itself has no mint capability."
+   ],
+   "mutable": true,
+   "delay": null,
+   "userExitImpact": "This mock exists only in the test suite and cannot affect any deployed pool or user."
+  }
+ ],
+ "dependencies": {
+  "onchain": [
+   {
+    "id": "v4-poolmanager",
+    "name": "Uniswap v4 PoolManager",
+    "kind": "protocol-singleton",
+    "repository": "https://github.com/Uniswap/v4-core",
+    "revision": "af7c077a438d5556b75f0ca722c6d3d53a7a1a9b",
+    "packageVersion": "1.0.2",
+    "license": "MIT",
+    "sourceProvenance": "pinned-source",
+    "deploymentRecordId": "v4-poolmanager-ethereum",
+    "chainAddress": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+    "runtimeHash": "0x785f1014552b7ce7d5fb7d0c970ca60edee94fd00425d7ca21609acac7ce1293",
+    "deploymentEvidencePath": "submissions/volfee/deployment-evidence.json",
+    "trust": "Immutable Ethereum-mainnet v4 PoolManager (address from deployment record v4-poolmanager-ethereum). The hook compiles against @uniswap/v4-core 1.0.2 per compatibility.lock.json. The mainnet PoolManager runtime is observed: runtimeHash from cast codehash at block 25666892 and head, plus a Sourcify runtime+creation source match (deployment-evidence.json), validated by the test/fork/* pinned+head suite. Contributor-declared, untrusted until maintainers reproduce; the hook is not deployed.",
+    "failure": "A missing or mismatched PoolManager runtime blocks preparation; at runtime every callback is onlyPoolManager and any PoolManager revert reverts the whole swap atomically.",
+    "fallback": "No silent fallback: the bound runtime hash and the Sourcify runtime+source match are reproducible from deployment-evidence.json; maintainers must independently reproduce them before release."
+   }
+  ],
+  "offchain": []
+ },
+ "operations": {
+  "keeper": {
+   "required": false,
+   "actor": null,
+   "action": null,
+   "cadence": null,
+   "authentication": null,
+   "funding": null,
+   "failure": null,
+   "fallback": null
+  },
+  "oracle": {
+   "required": false,
+   "actor": null,
+   "action": null,
+   "cadence": null,
+   "authentication": null,
+   "funding": null,
+   "failure": null,
+   "fallback": null
+  },
+  "monitoring": "Index ProgrammableFeeCollected, ProgrammableFeeClaimed and ProjectFeeClaimed by PoolId and currency; alert when the confirmed hook quote (WETH) claim balance is not equal to programmableFeeOwed + projectFeeOwed.",
+  "incidentResponse": "The immutable hook has no pause, rescue or redirect authority; on a confirmed solvency mismatch, publish the exact affected PoolId and reconstructed liabilities; the fee and volatility mechanics remain governed only by code."
+ },
+ "integration": {
+  "routerGeneration": null,
+  "routerDependencyId": null,
+  "permit2DependencyId": null,
+  "stateViewDependencyId": null,
+  "quoterDependencyId": null,
+  "sdkDependencies": [
+   {
+    "packageName": "@openzeppelin/uniswap-hooks",
+    "version": "1.1.1",
+    "integrity": "sha512-DI5lNlNsWCcSbEGdc2SCmxpkAAjlnwf4a1MQcpPEO6kRi1OQUZwYwGG/n379wJdrcj5n0/z7uhZ/wWetG92lrQ==",
+    "repository": "https://github.com/OpenZeppelin/uniswap-hooks",
+    "revision": "a5f831963087d44a857ec41ddff4da01949f38ff"
+   },
+   {
+    "packageName": "@openzeppelin/contracts",
+    "version": "5.5.0",
+    "integrity": "sha512-R8hq4zmKKWP2c7OxeRgAcjZwvF5W0Qq2OIX7degrtdM52Q9xYr4MLJdUAVPKGUewNJ1qo+M6YiZLLnNUnjP/gg==",
+    "repository": "https://github.com/OpenZeppelin/openzeppelin-contracts",
+    "revision": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
+   },
+   {
+    "packageName": "@uniswap/v4-core",
+    "version": "1.0.2",
+    "integrity": "sha512-X15Tm2wWd+USAzEExMbo+g9naA6QN6mPgWm0MzDwRNlOfaNlepfUpSyt9RSrUfEODspwbyWbcLg6t5nwc/e7lg==",
+    "repository": "https://github.com/Uniswap/v4-core",
+    "revision": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc"
+   },
+   {
+    "packageName": "@uniswap/v4-periphery",
+    "version": "1.0.3",
+    "integrity": "sha512-JxLL0Djv9XcMvI2PatEnWrCrxuEaYNVhHxstndBOP+aJfh1XLg5ec8SDZ0xyoVfg2ElJTvuKpBgnu90bNValsg==",
+    "repository": "https://github.com/Uniswap/v4-periphery",
+    "revision": "60cd93803ac2b7fa65fd6cd351fd5fd4cc8c9db5"
+   }
+  ],
+  "routerActionProfile": {
+   "routerVersionExplicit": null,
+   "universalRouterCommand": null,
+   "v4Actions": [],
+   "settlementMode": null,
+   "permit2Mode": null,
+   "finalSwapDeltaValidated": null
+  },
+  "appSourcePaths": [],
+  "integrationTestPaths": [],
+  "quoteExecutionParity": null,
+  "swapModes": [
+   "zeroForOne-exactInput",
+   "zeroForOne-exactOutput",
+   "oneForZero-exactInput",
+   "oneForZero-exactOutput"
+  ],
+  "partialFills": "Only executed amounts are charged; unfilled portions create no fee or liability.",
+  "slippage": "The trader's minimum output or maximum input is enforced by the external router against the final caller delta after the fee.",
+  "deadline": "Enforced by the external router; the hook adds no separate deadline.",
+  "permit2": "Handled by the external router; the hook holds no token allowances.",
+  "stateReads": "ewmaVol and lastTick are read from hook storage within the unlock; poolManager.getSlot0 is called in afterSwap to read the current tick; no external state is read.",
+  "events": [
+   "ProgrammableFeeCollected(PoolId indexed poolId,Currency indexed currency,uint256 platformAmount,uint256 projectAmount)",
+   "ProgrammableFeeClaimed(PoolId indexed poolId,Currency indexed currency,address indexed destination,uint256 amount)",
+   "ProjectFeeClaimed(PoolId indexed poolId,Currency indexed currency,address indexed destination,uint256 amount)"
+  ],
+  "routingAndDiscoverability": {
+   "routingMode": "not-planned",
+   "allowlistTriggers": {
+    "usesDeltaFlag": true,
+    "addressStartsWith91": false,
+    "targetsMajorPair": false,
+    "permissionedPool": false
+   },
+   "uniswapRoutingStatus": "not-applicable",
+   "hookRegistryStatus": "not-submitted",
+   "customHookDataRequired": false,
+   "standardRouterCompatible": true,
+   "permissionedRouting": {
+    "required": false,
+    "minimumRouterGeneration": null,
+    "adapterCurrencyUsed": null,
+    "allowedWrapperBindings": null,
+    "positionManagerBinding": null,
+    "routingAllowlistRequiredPerChain": null
+   },
+   "sourcePaths": [],
+   "testPaths": []
+  },
+  "dataReconstruction": {
+   "mode": "events-with-confirmed-reads",
+   "eventCoverage": "ProgrammableFeeCollected reconstructs every platform (10 bps) and project (effective-1000) accrual; ProgrammableFeeClaimed every platform claim; ProjectFeeClaimed every project claim. The confirmed hook ERC-6909 quote (WETH) balance plus the programmableFeeOwed(poolId,currency) and projectFeeOwed(poolId,currency) getters reconcile the backing (balance == programmableFeeOwed + projectFeeOwed).",
+   "cursor": "block-number-transaction-index-log-index",
+   "startBlockPolicy": "Index from the block in which the canonical pool was initialized and bound at _afterInitialize (the pool's PoolManager Initialize log).",
+   "finalityDepth": 12,
+   "reorgPolicy": "Roll back to the last finalized cursor and replay; never report liabilities from an unfinalized block.",
+   "backfillPolicy": "Deterministic replay from the start block reconstructs programmableFeeOwed, projectFeeOwed and all liabilities exactly.",
+   "checkpointPolicy": "Checkpoint programmableFeeOwed and projectFeeOwed at each finalized block.",
+   "freshnessTargetSeconds": 60,
+   "staleAfterSeconds": 300,
+   "freshnessMeasurement": "Wall-clock lag between chain head and the last indexed finalized block.",
+   "reconciliation": "At one confirmed block, event-derived programmableFeeOwed + projectFeeOwed must equal the hook's ERC-6909 quote (WETH) balance; withhold results on any mismatch.",
+   "reserveReconstruction": {
+    "used": true,
+    "balanceSources": [
+     "Hook ERC-6909 quote (WETH, currency0) claim balance in PoolManager at one confirmed block"
+    ],
+    "liabilitySources": [
+     "ProgrammableFeeCollected, ProgrammableFeeClaimed and ProjectFeeClaimed logs plus the programmableFeeOwed(poolId,currency) and projectFeeOwed(poolId,currency) contract reads"
+    ],
+    "attributionKeys": [
+     "poolId",
+     "currency",
+     "beneficiary"
+    ],
+    "solvencyEquation": "Confirmed hook ERC-6909 quote (WETH) balance == programmableFeeOwed + projectFeeOwed (>= as the safety bound); programmableFeeOwed >= 0; projectFeeOwed >= 0; pool LP liquidity excluded from hook custody.",
+    "poolLiquidityTreatment": "excluded-from-hook-reserves",
+    "donationAndDustPolicy": "A direct token transfer to the hook does not become an ERC-6909 claim, creates no liability and is excluded from claimable amounts; no admin can sweep or attribute the excess.",
+    "reconciliation": "Rebuild liabilities from finalized events, compare with the programmableFeeOwed/projectFeeOwed getters and the gross claim balance, and withhold results whenever any value disagrees."
+   },
+   "sourcePaths": [
+    "src/VolFeeHook.sol",
+    "src/lib/VolMath.sol"
+   ],
+   "testPaths": [
+    "test/ProgrammableFee.t.sol",
+    "test/VolAdaptiveFee.t.sol",
+    "test/VolMath.t.sol",
+    "test/fork/VolFeeFork.t.sol",
+    "test/invariant/VolFeeInvariant.t.sol"
+   ]
+  },
+  "platformHandoff": {
+   "intended": true,
+   "websiteRegistryPath": null,
+   "uiSourcePaths": [],
+   "apiSourcePaths": [],
+   "indexerSourcePaths": [],
+   "testPaths": [],
+   "reviewStatus": "not-requested",
+   "maintainerReviewRequired": true,
+   "selfApproval": false,
+   "availabilityClaimed": false,
+   "handoffNotes": "The single custom hook is implemented (src/VolFeeHook.sol + src/lib/VolMath.sol) and is the review target: the quadrant-dependent mandatory fee, the owner-only claimable platform liability, the project-only claimable project fee liability, and the dynamic LP fee auto-calibrating to realized volatility. No product UI, API or indexer surface is implemented yet; those, and any deployment, remain future maintainer-owned handoff work requiring separate review."
+  }
+ },
+ "projectSurfaces": [
+  {
+   "id": "volfee-hook",
+   "kind": "onchain-contract",
+   "name": "VolFee hook",
+   "summary": "The single custom v4 hook that implements the dynamic LP fee auto-calibrating to realized volatility, custodies the two liabilities (programmableFeeOwed and projectFeeOwed) as ERC-6909 claims, and accrues the mandatory volume fee on the canonical WETH/VOL pool.",
+   "executionBoundary": "onchain",
+   "capabilityIds": [
+    "volatility-tracking",
+    "programmable-fee-accrual",
+    "project-fee-accrual",
+    "dynamic-lp-fee"
+   ],
+   "authorityRefs": [
+    "Programmable fee owner",
+    "Project fee beneficiary",
+    "Immutable launch parameters"
+   ],
+   "valueFlowRefs": [
+    "swap-volume-charge",
+    "programmable-fee-accrual",
+    "project-fee-accrual",
+    "programmable-fee-claim",
+    "project-fee-claim"
+   ],
+   "assetRefs": [
+    "weth",
+    "vol-token"
+   ],
+   "sourcePaths": [
+    "src/VolFeeHook.sol",
+    "src/lib/VolMath.sol"
+   ],
+   "testPaths": [
+    "test/VolAdaptiveFee.t.sol",
+    "test/VolMath.t.sol",
+    "test/ProgrammableFee.t.sol",
+    "test/fork/VolFeeFork.t.sol",
+    "test/invariant/VolFeeInvariant.t.sol"
+   ],
+   "schemaPaths": [],
+   "evidencePaths": [
+    "compatibility.lock.json",
+    "docs/AUDIT.md",
+    "docs/VOLFEE.md",
+    "docs/PROGRAMMABLE_FEE.md"
+   ],
+   "exposure": {
+    "movesValue": true,
+    "usesSignatures": false,
+    "makesExternalCalls": true,
+    "holdsCustody": true,
+    "handlesPii": false,
+    "usesGeolocation": false,
+    "usesSecrets": false
+   },
+   "profiles": {
+    "authority": {
+     "status": "applicable",
+     "summary": "PoolManager callback authentication, the immutable Programmable owner and the immutable PROJECT govern every privileged action on this boundary.",
+     "controls": [
+      "Authenticate every callback through the exact immutable PoolManager and the bound canonical PoolId.",
+      "Bind the immutable Programmable owner as the sole platform-claim authority and the immutable PROJECT as the sole project-claim authority, and forbid any admin mutation."
+     ],
+     "evidenceRefs": []
+    },
+    "valueFlow": {
+     "status": "applicable",
+     "summary": "The hook accrues the volume charge, credits programmableFeeOwed and projectFeeOwed, so every value flow is bound and conserved.",
+     "controls": [
+      "Bind each accrual and claim to a declared value-flow id and conserve the quote across programmableFeeOwed and projectFeeOwed (balance == programmableFeeOwed + projectFeeOwed)."
+     ],
+     "evidenceRefs": []
+    },
+    "sourceOfTruth": {
+     "status": "applicable",
+     "summary": "Confirmed PoolManager and hook storage for the exact chain and PoolId is the authoritative source for programmableFeeOwed, projectFeeOwed, ewmaVol and lastTick.",
+     "controls": [
+      "Key every state read and emitted event by the exact chain, model revision and canonical PoolId."
+     ],
+     "evidenceRefs": []
+    },
+    "signaturesReplay": {
+     "status": "not-applicable",
+     "summary": "The hook consumes no model-specific signed message and reads no signed offchain payload; all behavior derives from aggregate pool state.",
+     "controls": [],
+     "evidenceRefs": []
+    },
+    "externalCalls": {
+     "status": "applicable",
+     "summary": "The hook settles quote (WETH) deltas through PoolManager; external interactions must be failure-isolated.",
+     "controls": [
+      "Use checks-effects-interactions and revert the whole swap on any failed take, settle or claim."
+     ],
+     "evidenceRefs": []
+    },
+    "custody": {
+     "status": "applicable",
+     "summary": "The hook custodies programmableFeeOwed and projectFeeOwed as ERC-6909 quote (WETH) claims; each liability is backed 1:1 by the hook's claim balance.",
+     "controls": [
+      "Maintain hook quote-claim balance == programmableFeeOwed + projectFeeOwed at every block and exclude pool LP liquidity from hook custody."
+     ],
+     "evidenceRefs": []
+    },
+    "piiGeolocation": {
+     "status": "not-applicable",
+     "summary": "The onchain hook collects no private identity data and no precise user geolocation.",
+     "controls": [],
+     "evidenceRefs": []
+    },
+    "secretBoundary": {
+     "status": "not-applicable",
+     "summary": "The onchain hook assumes no secret can remain confidential in contract state or calldata.",
+     "controls": [],
+     "evidenceRefs": []
+    },
+    "sourceTestSchema": {
+     "status": "applicable",
+     "summary": "The implementation manifest binds the exact hook source (src/VolFeeHook.sol, src/lib/VolMath.sol), tests and the compiler build-info reviewed for this boundary.",
+     "controls": [
+      "Bind prototype source and tests to implementation paths and include every imported executable byte in the review target."
+     ],
+     "evidenceRefs": []
+    },
+    "failureRecovery": {
+     "status": "applicable",
+     "summary": "A checked-conversion or settlement failure reverts atomically; no partial settlement persists and no funds are trapped.",
+     "controls": [
+      "Test executed-vs-requested sizing, ceil rounding and settlement failure without partial settlement or trapped funds."
+     ],
+     "evidenceRefs": []
+    }
+   },
+   "signedDataSource": {
+    "used": false,
+    "signerAuthorityRefs": [],
+    "signatureScheme": null,
+    "payloadSchemaPath": null,
+    "freshnessRule": null,
+    "replayProtection": null,
+    "onchainVerifierSurfaceId": null
+   },
+   "onchainOracleVerifier": {
+    "used": false,
+    "verifiedSourceSurfaceIds": [],
+    "verificationRule": null,
+    "freshnessRule": null,
+    "replayProtection": null,
+    "failureRule": null
+   }
+  }
+ ],
+ "projectCapabilities": [
+  {
+   "id": "volatility-tracking",
+   "kind": "custom-accounting-volatility",
+   "summary": "Track realized volatility as an EWMA of absolute per-swap tick deltas, updated in afterSwap from poolManager.getSlot0, with read-before/update-after manipulation resistance.",
+   "surfaceIds": [
+    "volfee-hook"
+   ],
+   "securityTriggers": {
+    "authority": true,
+    "valueFlow": false,
+    "sourceOfTruth": true,
+    "signaturesReplay": false,
+    "externalCalls": true,
+    "custody": false,
+    "piiGeolocation": false,
+    "secretBoundary": false,
+    "sourceTestSchema": true,
+    "failureRecovery": true
+   },
+   "requiredProfiles": [
+    "authority",
+    "source-of-truth",
+    "external-calls",
+    "source-test-schema",
+    "failure-recovery"
+   ]
+  },
+  {
+   "id": "programmable-fee-accrual",
+   "kind": "mandatory-volume-fee",
+   "summary": "Accrue the effective hook-owned volume charge as a 10 bps owner-only claimable liability plus a project-remainder claimable liability on every canonical-pool swap.",
+   "surfaceIds": [
+    "volfee-hook"
+   ],
+   "securityTriggers": {
+    "authority": true,
+    "valueFlow": true,
+    "sourceOfTruth": true,
+    "signaturesReplay": false,
+    "externalCalls": false,
+    "custody": true,
+    "piiGeolocation": false,
+    "secretBoundary": false,
+    "sourceTestSchema": true,
+    "failureRecovery": true
+   },
+   "requiredProfiles": [
+    "authority",
+    "value-flow",
+    "source-of-truth",
+    "custody",
+    "source-test-schema",
+    "failure-recovery"
+   ]
+  },
+  {
+   "id": "project-fee-accrual",
+   "kind": "project-claimable-liability",
+   "summary": "Accrue the project portion (effective - 1000) of the hook-owned volume charge as a PROJECT-only claimable liability on every canonical-pool swap.",
+   "surfaceIds": [
+    "volfee-hook"
+   ],
+   "securityTriggers": {
+    "authority": true,
+    "valueFlow": true,
+    "sourceOfTruth": true,
+    "signaturesReplay": false,
+    "externalCalls": false,
+    "custody": true,
+    "piiGeolocation": false,
+    "secretBoundary": false,
+    "sourceTestSchema": true,
+    "failureRecovery": true
+   },
+   "requiredProfiles": [
+    "authority",
+    "value-flow",
+    "source-of-truth",
+    "custody",
+    "source-test-schema",
+    "failure-recovery"
+   ]
+  },
+  {
+   "id": "dynamic-lp-fee",
+   "kind": "dynamic-lp-fee-override",
+   "summary": "Return a per-swap LP fee override in beforeSwap computed from the current ewmaVol (before this swap's update), ensuring a swap cannot lower its own fee; update ewmaVol in afterSwap from the executed tick move.",
+   "surfaceIds": [
+    "volfee-hook"
+   ],
+   "securityTriggers": {
+    "authority": true,
+    "valueFlow": false,
+    "sourceOfTruth": true,
+    "signaturesReplay": false,
+    "externalCalls": true,
+    "custody": false,
+    "piiGeolocation": false,
+    "secretBoundary": false,
+    "sourceTestSchema": true,
+    "failureRecovery": true
+   },
+   "requiredProfiles": [
+    "authority",
+    "source-of-truth",
+    "external-calls",
+    "source-test-schema",
+    "failure-recovery"
+   ]
+  }
+ ],
+ "capabilities": {
+  "externalCalls": {
+   "used": true,
+   "targets": [
+    "PoolManager take (claims=true, mint) and settle (burn=true) for the quote (WETH, currency0) ERC-6909 claims",
+    "The standard mainnet WETH ERC-20 on the claim payout paths (take underlying to the destination)",
+    "poolManager.getSlot0 view read to get the current tick in afterSwap",
+    "poolManager.updateDynamicLPFee call in afterInitialize to set the initial LP fee"
+   ],
+   "callSites": [
+    "beforeSwap fee collection (before-quadrants) and LP fee override",
+    "afterSwap fee collection (after-quadrants) and volatility state update",
+    "claimProgrammableFee / unlockCallback owner claim of the platform liability",
+    "claimProjectFee / unlockCallback project claim of the project fee liability",
+    "afterInitialize to set the initial LP fee on the dynamic-fee pool"
+   ],
+   "reentrancyPolicy": "All entry points are PoolManager-authenticated callbacks or the owner/project-only claims and follow checks-effects-interactions; no external call observes an unchanged liability balance.",
+   "stateDriftPolicy": "The quote is standard WETH; the volatility state (ewmaVol, lastTick) is updated only in afterSwap after fee collection. Every balance change is settled exactly through PoolManager.",
+   "returnValuePolicy": "Use SafeERC20 or checked settlement and revert the whole action on any failed take, settle or transfer.",
+   "failureAtomicity": "A reverted or malformed settlement reverts the prior ledger changes and cannot alter another PoolId, currency or beneficiary key."
+  },
+  "permissionedAsset": {
+   "used": false,
+   "officialUniswapPermissionedPool": null,
+   "issuer": null,
+   "jurisdiction": null,
+   "legalDocuments": [],
+   "underlyingClaim": null,
+   "custodian": null,
+   "adapter": null,
+   "hooks": null,
+   "positionManager": null,
+   "swapEligibility": null,
+   "liquidityEligibility": null,
+   "positionTransferability": null,
+   "pauseFreezeUnwind": null,
+   "redemption": null,
+   "routingLimitations": null
+  },
+  "oracle": {
+   "used": false,
+   "source": null,
+   "value": null,
+   "deployment": null,
+   "runtimeHash": null,
+   "decimals": null,
+   "heartbeatSeconds": null,
+   "maxAgeSeconds": null,
+   "observationType": null,
+   "windowSeconds": null,
+   "minimumAnswer": null,
+   "maximumAnswer": null,
+   "maximumDeviation": null,
+   "roundChecks": null,
+   "manipulationResistance": null,
+   "governance": null,
+   "fallback": null,
+   "maxFallbackAgeSeconds": null,
+   "failureRule": null
+  },
+  "keeper": {
+   "used": false,
+   "executionMode": null,
+   "minIntervalSeconds": null,
+   "maxDelaySeconds": null,
+   "permissionlessFallbackAfterSeconds": null,
+   "idempotencyKey": null,
+   "duplicateBehavior": null,
+   "lastProcessedState": null,
+   "boundedWork": null,
+   "maxItems": null,
+   "retryPolicy": null,
+   "zeroWorkBehavior": null,
+   "fundingSource": null,
+   "minimumGasRunway": null,
+   "alertThreshold": null,
+   "maximumGas": null,
+   "failureImpact": null,
+   "userExitIndependent": null,
+   "poolBinding": null,
+   "slippage": null,
+   "deadline": null,
+   "mevPolicy": null
+  },
+  "proof": {
+   "used": false,
+   "proofSystem": null,
+   "circuitRevision": null,
+   "verifyingKeyHash": null,
+   "verifierAddress": null,
+   "runtimeHash": null,
+   "setupType": null,
+   "setupProvenance": null,
+   "publicInputs": [],
+   "domainBindings": {
+    "chainId": null,
+    "verifyingContract": null,
+    "modelVersion": null,
+    "pool": null,
+    "action": null,
+    "actorOrRecipient": null,
+    "amountBounds": null,
+    "epochOrDeadline": null
+   },
+   "replayMode": null,
+   "nullifierScope": null,
+   "nullifierDerivation": null,
+   "nullifierStorage": null,
+   "atomicSpentCheck": null,
+   "resetPolicy": null,
+   "maximumProofBytes": null,
+   "maximumVerificationGas": null,
+   "verifierAuthority": null,
+   "failureRule": null,
+   "privacyClaim": null,
+   "metadataLeakage": null
+  },
+  "crossChain": {
+   "used": false,
+   "bridgeDependencyId": null,
+   "source": {
+    "network": {
+     "namespace": null,
+     "reference": null
+    },
+    "domain": null,
+    "authenticatedSender": {
+     "encoding": null,
+     "value": null,
+     "canonicalizationRule": null
+    }
+   },
+   "destination": {
+    "chainId": null,
+    "domain": null,
+    "receiver": null,
+    "receiverDependencyId": null,
+    "authenticatedBridgeCaller": null
+   },
+   "message": {
+    "identifierDerivation": null,
+    "nonceDerivation": null,
+    "nonceScope": null,
+    "customNonceRule": null,
+    "payloadHashRule": null,
+    "idempotencyKeyRule": null,
+    "idempotencyStorage": null,
+    "atomicConsumption": null,
+    "duplicateBehavior": null,
+    "domainBindings": {
+     "bridgeDependencyId": null,
+     "sourceNetwork": null,
+     "sourceDomain": null,
+     "sourceSender": null,
+     "destinationChainId": null,
+     "destinationDomain": null,
+     "receiver": null,
+     "receiverDependencyId": null,
+     "modelId": null,
+     "poolId": null,
+     "action": null,
+     "payloadHash": null,
+     "timestampOrExpiry": null,
+     "messageId": null,
+     "nonce": null
+    }
+   },
+   "finality": {
+    "mode": null,
+    "minimumSourceConfirmations": null,
+    "challengePeriodSeconds": null,
+    "attestationRule": null,
+    "reorgBehavior": null,
+    "customFinalityRule": null
+   },
+   "ordering": {
+    "mode": null,
+    "sequenceKey": null,
+    "outOfOrderBehavior": null,
+    "maximumPendingMessages": null,
+    "queueOverflowBehavior": null,
+    "pendingMessageExpirySeconds": null,
+    "cleanupRule": null,
+    "releaseRule": null
+   },
+   "staleness": {
+    "timestampSource": null,
+    "customTimestampRule": null,
+    "maximumMessageAgeSeconds": null,
+    "maximumFutureSkewSeconds": null,
+    "staleMessageBehavior": null
+   },
+   "failureBehavior": null,
+   "failureRule": null,
+   "fallback": {
+    "mode": null,
+    "authority": null,
+    "rule": null
+   },
+   "quarantine": {
+    "used": null,
+    "storageRule": null,
+    "maximumEntries": null,
+    "entryExpirySeconds": null,
+    "overflowBehavior": null,
+    "cleanupRule": null,
+    "releaseMode": null,
+    "releaseRule": null,
+    "releaseAuthority": null,
+    "atomicRelease": null
+   }
+  },
+  "externalLiquidity": {
+   "used": true,
+   "custody": "The hook holds quote (WETH) ERC-6909 claims in PoolManager backing the two fee liabilities (the owner platform liability and the project-claimable liability). It holds no pool liquidity position and no external-protocol asset.",
+   "ownership": "The claims are the hook's own balance; each unit is owed to either the immutable owner (platform slice) or the immutable PROJECT beneficiary (project slice) and is claimable only by that party.",
+   "shareAccounting": "No shares are issued. Two scalar liabilities, programmableFeeOwed and projectFeeOwed, each keyed by (poolId, currency), account for every claimed unit.",
+   "solvencyEquation": "hook ERC-6909 quote-claim balance == programmableFeeOwed[poolId][quote] + projectFeeOwed[poolId][quote] after every swap and every claim.",
+   "lossAllocation": "None. The liabilities are backed 1:1 by claims; a claim pays exactly the accrued liability and zeroes it, so no fractional or socialized loss is possible.",
+   "donationPolicy": "Donations are not counted as liability backing; only the two accrued liabilities are claimable and any stray balance is never treated as owed.",
+   "exitPath": "The owner exits the platform liability via claimProgrammableFee and the PROJECT exits the project liability via claimProjectFee; both are always available, zero-before-pay (CEI), to a per-claim destination.",
+   "dependencyFailure": "A failed take or settle reverts the entire swap or claim atomically; no partial or unbacked liability is ever recorded."
+  },
+  "asyncSwap": {
+   "used": false,
+   "supportedExactness": null,
+   "custody": null,
+   "fillRule": null,
+   "partialFillRule": null,
+   "cancellation": null,
+   "expiry": null,
+   "refund": null,
+   "queueBound": null,
+   "liveness": null,
+   "failureRule": null
+  },
+  "customCurve": {
+   "used": false,
+   "invariant": null,
+   "domain": null,
+   "rounding": null,
+   "monotonicity": null,
+   "discontinuities": null,
+   "inverse": null,
+   "differentialReference": null,
+   "failureRule": null
+  }
+ },
+ "capabilityExtensions": [
+  {
+   "capabilityId": "dynamic-lp-fee",
+   "summary": "A hook-enforced dynamic LP fee that auto-calibrates to realized volatility measured from on-chain tick movement (an EWMA of absolute per-swap tick deltas), with read-before/update-after manipulation resistance ensuring a swap cannot lower its own fee.",
+   "interactionRefs": [
+    "hook.beforeSwap",
+    "hook.afterSwap",
+    "hook.afterInitialize"
+   ],
+   "trustBoundary": "The LP fee is computed only from internal hook state (ewmaVol, lastTick) and immutable parameters (INITIAL_LP_FEE, K_NUM, K_DEN, MIN_LP_FEE, MAX_LP_FEE, ALPHA_BPS), with no external price source, keeper or admin; the fee is hard-bounded to [MIN_LP_FEE, MAX_LP_FEE] and the EWMA update occurs only in afterSwap (after fee collection), so no party can manipulate the fee for their own swap.",
+   "failureMode": "VolMath.feeFromVol reverts only on invalid immutable parameters at construction (BadVolParams / BadInitialFee); at swap time it is pure arithmetic with overflow guards that clamp to MAX_LP_FEE, so a per-swap fee computation can neither revert the swap nor leave the immutable bounds.",
+   "schemaPath": null,
+   "sourcePaths": [
+    "src/VolFeeHook.sol",
+    "src/lib/VolMath.sol"
+   ],
+   "testPaths": [
+    "test/VolAdaptiveFee.t.sol",
+    "test/VolMath.t.sol",
+    "test/invariant/VolFeeInvariant.t.sol"
+   ],
+   "evidencePaths": [
+    "docs/VOLFEE.md"
+   ]
+  }
+ ],
+ "tokenBehaviorExtensions": [],
+ "security": {
+  "usesTxOrigin": false,
+  "userControlledDelegatecall": false,
+  "arbitraryExecution": false,
+  "unboundedCriticalLoop": false,
+  "ignoredCallResults": false,
+  "hiddenControls": false,
+  "assumesOnchainSecrecy": false,
+  "bypassesHookAddressValidation": false,
+  "signatureScheme": {
+   "used": false,
+   "standard": null,
+   "nonce": null,
+   "deadline": null,
+   "chain": null,
+   "verifyingContract": null,
+   "action": null,
+   "parameters": null,
+   "erc1271": null
+  }
+ },
+ "implementation": {
+  "sourcePaths": [
+   "src/VolFeeHook.sol",
+   "src/lib/VolMath.sol"
+  ],
+  "testPaths": [
+   "test/VolAdaptiveFee.t.sol",
+   "test/VolMath.t.sol",
+   "test/ProgrammableFee.t.sol",
+   "test/fork/VolFeeFork.t.sol",
+   "test/invariant/VolFeeInvariant.t.sol"
+  ],
+  "compilerBuildInfoPaths": [
+   "out/build-info/f4cfa5306ea93a2e.json"
+  ],
+  "specificationPath": "docs/PROGRAMMABLE_FEE.md",
+  "testEvidencePath": ".gas-snapshot",
+  "dependencyLockPath": "submissions/volfee/dependency-lock.json",
+  "gateStatusPath": "submissions/volfee/gate-status.json",
+  "reviewTargetPath": "submissions/volfee/review-target.json",
+  "runtimeAssetManifestPath": null
+ },
+ "risk": {
+  "dimensions": {
+   "complexity": 3,
+   "customMath": 2,
+   "externalDependencies": 1,
+   "externalLiquidity": 1,
+   "valueAtRisk": 2,
+   "teamMaturity": 1,
+   "upgradeability": 0,
+   "autonomy": 0,
+   "priceImpact": 2
+  },
+  "rationales": {
+   "complexity": "Quadrant-dependent before/after fee return deltas, a volatility state update in afterSwap, and an ERC-6909 quote-claim ledger for two liabilities interact within one unlock.",
+   "customMath": "The arithmetic is a bounded ceil basis-point charge plus an EWMA volatility update with explicit directional rounding (fee ceil), and a dynamic LP fee formula bounded to [MIN_LP_FEE, MAX_LP_FEE].",
+   "externalDependencies": "The onchain dependencies are the immutable v4 PoolManager and standard WETH; there is no external price source, keeper, bridge or upgrade dependency.",
+   "externalLiquidity": "The hook custodies quote (WETH) ERC-6909 claims in PoolManager that back the two fee liabilities (owner platform liability and the project-claimable liability). This is hook-held value, not pool liquidity or an external-protocol position: it is fully accounted (hook 6909 quote balance == programmableFeeOwed + projectFeeOwed), leaves only through the two authenticated claim paths, and is never lent, staked or exposed to any external liquidity venue.",
+   "valueAtRisk": "The hook holds ERC-6909 quote claims backing programmableFeeOwed and projectFeeOwed; these are claimable only by their respective beneficiaries and are solvent by construction (balance == programmableFeeOwed + projectFeeOwed).",
+   "teamMaturity": "A conservative nonzero process score remains until independent accounting and security reviews complete.",
+   "upgradeability": "The hook, fee mechanics, volatility parameters and beneficiaries are immutable for the pool.",
+   "autonomy": "No keeper, external price source, scheduler or autonomous parameter can change the fee, volatility or liabilities; all state updates are swap-driven.",
+   "priceImpact": "The bounded fee and the dynamic LP fee change the caller's final input or output but never replace core price formation."
+  },
+  "declaredTotal": 12,
+  "declaredTier": "high",
+  "featureTriggers": [
+   "custom-accounting",
+   "custom-math",
+   "external-calls",
+   "external-liquidity",
+   "hook-held-liquidity",
+   "price-impact",
+   "project-custody",
+   "project-external-calls",
+   "project-value-flow",
+   "return-delta"
+  ]
+ },
+ "disclosures": [
+  "This is a PROTOTYPE record bound to the implemented hook (src/VolFeeHook.sol + src/lib/VolMath.sol). The hook is NOT deployed; it has not been independently reviewed, audited, routed, source-verified, or made available through Programmable. Local tests prove only the declared rules for this revision.",
+  "The hook implements TWO independent mechanisms: (1) the mandatory Programmable volume fee (10 bps platform owner liability + project remainder as a project-claimable liability), and (2) a dynamic LP fee that auto-calibrates to realized volatility measured from on-chain tick movement (an EWMA of absolute per-swap tick deltas). There is NO price protection mechanism, NO stored quote balance for protection, NO seller payment mechanism, and NO totalSupply-based calculation.",
+  "The project portion (effective - 1000) is a PROJECT-CLAIMABLE LIABILITY (projectFeeOwed), NOT a stored balance. It is held as the hook's ERC-6909 quote claims and can only be claimed by the immutable PROJECT address via claimProjectFee. No admin, builder or platform role can withdraw, sweep or redirect it.",
+  "The dynamic LP fee is computed in beforeSwap from the CURRENT ewmaVol (reflecting only PRIOR swaps) and returned with OVERRIDE_FEE_FLAG; the ewmaVol is updated in afterSwap from THIS swap's tick move. This read-before/update-after pattern ensures a swap cannot lower its own fee (manipulation resistance).",
+  "The hook-owned volume charge is a single effective rate taken INCLUSIVELY (feeTotalBps), split 10 bps to the immutable Programmable owner (0x4957f49620AFf3Adbbe8195a4f633E49cc93376c) and the remainder to the PROJECT; it is not added on top of the platform fee, and it is separate from the pool LP fee owned by liquidity providers. Fee amounts round UP (ceil, protocol favor), and platform + project == total exactly.",
+  "Both liabilities (programmableFeeOwed and projectFeeOwed) are held transparently as the hook's ERC-6909 quote (WETH) claims in PoolManager; no admin, builder or other role can withdraw, sweep or redirect either. Only the immutable owner can claim the platform liability (claimProgrammableFee), and only the immutable PROJECT can claim the project liability (claimProjectFee), each to a selected destination per claim.",
+  "There is no external price source, keeper, upgrade path or admin control; ewmaVol and lastTick are computed only from internal state and the pool's own tick (poolManager.getSlot0). The launched token is a standard fixed-supply ERC-20 with no mint, freeze, blacklist or confiscation authority.",
+  "Collection is quadrant-dependent (collect BEFORE iff the quote is the swap's specified currency, else AFTER); for the canonical WETH=currency0 quote pool the paths are before/after/after/before.",
+  "The hook is targetable at a mined CREATE2 address whose low bits equal the permission mask 0x10cc (afterInitialize | beforeSwap | afterSwap | beforeSwapReturnDelta | afterSwapReturnDelta); the exact hook address, the mined CREATE2 salt, the mainnet PoolManager runtime hash and the canonical PoolId are not yet pinned (the hook is not deployed and the suite runs against a locally-deployed fresh PoolManager, not the mainnet singleton), and remain maintainer-owned handoff work.",
+  "No off-chain product surface (UI/API/indexer) is implemented; data reconstruction is proven on-chain by the solvency/invariant suite, but a productionized indexer remains future maintainer-owned handoff work."
+ ],
+ "unresolved": []
+}

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "baseline": "model-specific-pinned",
+  "compiler": {
+    "solidity": "0.8.26",
+    "sourceRepository": "https://github.com/argotorg/solidity.git",
+    "sourceRevision": "8a97fa7a1db1ec509221ead6fea6802c684ee887",
+    "sourceTree": "4ecc702563263869217d8a42262d09bd6015f597",
+    "evmVersion": "cancun",
+    "optimizer": true,
+    "optimizerRuns": 200,
+    "viaIR": false,
+    "metadataBytecodeHash": "none",
+    "cborMetadata": true,
+    "ffi": false
+  },
+  "dependencies": [
+    {
+      "name": "OpenZeppelin Uniswap Hooks",
+      "repository": "https://github.com/OpenZeppelin/uniswap-hooks",
+      "revision": "a5f831963087d44a857ec41ddff4da01949f38ff",
+      "packageVersion": "1.1.1",
+      "integrity": "sha512-DI5lNlNsWCcSbEGdc2SCmxpkAAjlnwf4a1MQcpPEO6kRi1OQUZwYwGG/n379wJdrcj5n0/z7uhZ/wWetG92lrQ==",
+      "sourceTree": "01e2c8fe030e7c6dada3f620ed9e8ef1ef7771e2",
+      "license": "MIT",
+      "importPrefixes": ["@openzeppelin/uniswap-hooks/"]
+    },
+    {
+      "name": "OpenZeppelin Contracts",
+      "repository": "https://github.com/OpenZeppelin/openzeppelin-contracts",
+      "revision": "fcbae5394ae8ad52d8e580a3477db99814b9d565",
+      "packageVersion": "5.5.0",
+      "integrity": "sha512-R8hq4zmKKWP2c7OxeRgAcjZwvF5W0Qq2OIX7degrtdM52Q9xYr4MLJdUAVPKGUewNJ1qo+M6YiZLLnNUnjP/gg==",
+      "sourceTree": "86cb129aae0996e7301575060da9eb8328b5597a",
+      "license": "MIT",
+      "importPrefixes": ["@openzeppelin/contracts/"]
+    },
+    {
+      "name": "Uniswap v4 Core",
+      "repository": "https://github.com/Uniswap/v4-core",
+      "revision": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+      "packageVersion": "1.0.2",
+      "integrity": "sha512-X15Tm2wWd+USAzEExMbo+g9naA6QN6mPgWm0MzDwRNlOfaNlepfUpSyt9RSrUfEODspwbyWbcLg6t5nwc/e7lg==",
+      "sourceTree": "eb2b71f69fae17a743bcdddd54b5fe941236d949",
+      "license": "MIT",
+      "importPrefixes": ["@uniswap/v4-core/", "forge-std/", "solmate/"]
+    },
+    {
+      "name": "Uniswap v4 Periphery",
+      "repository": "https://github.com/Uniswap/v4-periphery",
+      "revision": "60cd93803ac2b7fa65fd6cd351fd5fd4cc8c9db5",
+      "packageVersion": "1.0.3",
+      "integrity": "sha512-JxLL0Djv9XcMvI2PatEnWrCrxuEaYNVhHxstndBOP+aJfh1XLg5ec8SDZ0xyoVfg2ElJTvuKpBgnu90bNValsg==",
+      "sourceTree": "93751cec4ed98d1cc998b5a7768db5887c445fd9",
+      "license": "MIT",
+      "importPrefixes": ["@uniswap/v4-periphery/"]
+    }
+  ]
+}

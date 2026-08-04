@@ -1,0 +1,77 @@
+{
+  "$comment": "One coherent, pinned dependency baseline for the Antifragile Floor v4 hook. Recorded per the Programmable v4 builder upstream-sources policy (stable OpenZeppelin uniswap-hooks profile). Do not float or mix generations; changing any pin requires re-testing the whole set in isolation.",
+  "profile": "openzeppelin-uniswap-hooks-stable",
+  "recordedAt": "2026-08-02",
+  "solidity": {
+    "solc": "0.8.26",
+    "evmVersion": "cancun",
+    "optimizer": true,
+    "optimizerRuns": 200,
+    "viaIR": false,
+    "note": "cancun required by Uniswap v4 (EIP-1153 transient storage). Compiles at optimizer_runs=200 without via_ir (matches upstream v4-core/periphery debug profile)."
+  },
+  "npmPackages": {
+    "@openzeppelin/uniswap-hooks": {
+      "version": "1.1.1",
+      "npmIntegrity": "sha512-DI5lNlNsWCcSbEGdc2SCmxpkAAjlnwf4a1MQcpPEO6kRi1OQUZwYwGG/n379wJdrcj5n0/z7uhZ/wWetG92lrQ==",
+      "sourceCommit": "a5f831963087d44a857ec41ddff4da01949f38ff",
+      "srcTree": "cc1f2d1788c1baf1521f3876521c33af28a86eb7",
+      "role": "Provides BaseHook (src/base/BaseHook.sol) and the coherent dependency family declaration.",
+      "note": "Pin by exact npm version + integrity + this source commit. Do NOT pin the similarly named git tag v1.1.1 (bd5287c...), whose package metadata says 1.2.1 and ships the preview src tree."
+    },
+    "@openzeppelin/contracts": {
+      "version": "5.5.0",
+      "npmIntegrity": "sha512-R8hq4zmKKWP2c7OxeRgAcjZwvF5W0Qq2OIX7degrtdM52Q9xYr4MLJdUAVPKGUewNJ1qo+M6YiZLLnNUnjP/gg==",
+      "sourceCommit": null,
+      "role": "Solidity utilities used by uniswap-hooks (IERC20, SafeERC20, SlotDerivation, TransientSlot, SafeCast) and by v4-core (proxy/Proxy.sol).",
+      "note": "Coherent family resolution required by the stable profile. uniswap-hooks 1.1.1 declares '^5.5.0'; npm floated it to 5.6.1, so it was pinned back down to exactly 5.5.0 as a direct save-exact dependency (5.5.0 satisfies ^5.5.0 -> no conflict). 5.5.0 provides TransientSlot/SlotDerivation which the bundled v4-core copy (5.0.2) lacks. sourceCommit not provided by the baseline; pinned by npm integrity."
+    },
+    "@uniswap/v4-core": {
+      "version": "1.0.2",
+      "npmIntegrity": "sha512-X15Tm2wWd+USAzEExMbo+g9naA6QN6mPgWm0MzDwRNlOfaNlepfUpSyt9RSrUfEODspwbyWbcLg6t5nwc/e7lg==",
+      "sourceCommit": null,
+      "role": "PoolManager, Hooks permission library, PoolKey/PoolId/BalanceDelta/BeforeSwapDelta types, and test/utils/Deployers.sol harness. Also bundles the coherent lib/forge-std (1.9.3) and lib/solmate used by tests.",
+      "note": "Coherent family resolution required by the stable profile. sourceCommit not provided by the baseline; pinned by npm integrity."
+    },
+    "@uniswap/v4-periphery": {
+      "version": "1.0.3",
+      "npmIntegrity": "sha512-JxLL0Djv9XcMvI2PatEnWrCrxuEaYNVhHxstndBOP+aJfh1XLg5ec8SDZ0xyoVfg2ElJTvuKpBgnu90bNValsg==",
+      "sourceCommit": null,
+      "role": "Provides HookMiner (src/utils/HookMiner.sol) used to mine the permission-matched CREATE2 hook address in tests.",
+      "note": "Coherent family resolution required by the stable profile. NOTE: upstream v4-periphery HEAD has since removed BaseHook + HookMiner (they moved to Uniswap/v4-hooks-public), but this pinned 1.0.3 npm artifact still ships HookMiner in src/utils/, so no extra install was needed. sourceCommit not provided by the baseline; pinned by npm integrity."
+    }
+  },
+  "forgeStd": {
+    "version": "1.9.3",
+    "provenance": "Bundled inside @uniswap/v4-core@1.0.2 at node_modules/@uniswap/v4-core/lib/forge-std (covered by that package's npm integrity above).",
+    "remapping": "forge-std/=node_modules/@uniswap/v4-core/lib/forge-std/src/",
+    "sourceCommit": null,
+    "note": "Chosen over a separate `forge install` so that v4-core's Deployers.sol and this project's tests resolve the SAME, coherent forge-std that v4-core 1.0.2 was built against. This forge-std (1.9.x) vendors its assertions and needs no ds-test. sourceCommit not resolved to a git hash; the exact bytes are pinned via the v4-core npm integrity."
+  },
+  "baseHook": {
+    "importPath": "@openzeppelin/uniswap-hooks/src/base/BaseHook.sol",
+    "resolvedFile": "node_modules/@openzeppelin/uniswap-hooks/src/base/BaseHook.sol",
+    "source": "OpenZeppelin uniswap-hooks 1.1.1 (its own BaseHook, NOT the stale v4-periphery BaseHook).",
+    "constructor": "constructor(IPoolManager _poolManager) — calls validateHookAddress(this), so deployment requires a permission-matched CREATE2 address."
+  },
+  "hookMiner": {
+    "importPath": "@uniswap/v4-periphery/src/utils/HookMiner.sol",
+    "resolvedFile": "node_modules/@uniswap/v4-periphery/src/utils/HookMiner.sol",
+    "source": "Uniswap v4-periphery 1.0.3 (still bundles HookMiner in this pinned version; not sourced from v4-hooks-public)."
+  },
+  "poolManagerHarness": {
+    "importPath": "@uniswap/v4-core/test/utils/Deployers.sol",
+    "resolvedFile": "node_modules/@uniswap/v4-core/test/utils/Deployers.sol",
+    "source": "Uniswap v4-core 1.0.2 test utilities (deployFreshManagerAndRouters)."
+  },
+  "hookPermissionMask": "0x10cc",
+  "hookPermissionMaskDerivation": "afterInitialize(1<<12=0x1000) | beforeSwap(1<<7=0x0080) | afterSwap(1<<6=0x0040) | beforeSwapReturnDelta(1<<3=0x0008) | afterSwapReturnDelta(1<<2=0x0004) = 0x10cc",
+  "remappings": [
+    "@openzeppelin/uniswap-hooks/=node_modules/@openzeppelin/uniswap-hooks/",
+    "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+    "@uniswap/v4-core/=node_modules/@uniswap/v4-core/",
+    "@uniswap/v4-periphery/=node_modules/@uniswap/v4-periphery/",
+    "forge-std/=node_modules/@uniswap/v4-core/lib/forge-std/src/",
+    "solmate/=node_modules/@uniswap/v4-core/lib/solmate/"
+  ]
+}

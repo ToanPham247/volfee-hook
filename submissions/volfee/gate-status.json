@@ -1,0 +1,479 @@
+{
+  "schemaVersion": 1,
+  "attestation": "builder-declared-untrusted",
+  "standardVersion": "1.3.0",
+  "submissionHash": "sha256:a981dff75883f60fbbbc7163484dd1f305977cef2a91813c774b873bc352352c",
+  "validatorSha256": "sha256:d3b4db147fbb955d0ecdff0d5d3a55d25a55a38bb72b33efe535d9c80c286318",
+  "schemaSha256": "sha256:b3a67753b286a35a49d88a85e1bdaec50f19d86b241145901e2dd24327fd515a",
+  "deploymentSnapshotSha256": "sha256:35e36a2837a70688104cd6a4aae3da4e1401429226c8ca15d036db4cf2195d2c",
+  "officialDeploymentReferenceSha256": "sha256:ef7e12bf1312edf374749bfeb18ac41cb83623856fbfd39892606579b7119fd6",
+  "policyBundleSha256": "sha256:1c623966ae90b671ff423329c14f1dbfb0061a80f6cd33b25e6671ed98c61c3d",
+  "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086",
+  "gates": [
+    {
+      "id": "format-build-size-warnings",
+      "status": "completed",
+      "note": "forge build passes under pinned solc 0.8.26 / cancun / optimizer runs=200 / bytecode_hash=none. Only informational forge-lint notes. Hook runtime size 8,004 bytes.",
+      "evidence": [
+        {
+          "gateId": "format-build-size-warnings",
+          "result": "passed",
+          "scope": "forge build --force --build-info under pinned solc 0.8.26/cancun/optimizer-200/bytecode_hash=none profile.",
+          "path": "evidence/forge-build.txt",
+          "sha256": "sha256:761d973320d9f06a3d543a9edc8391fd2389031c7003f50e7f1ff238f6d05e62",
+          "command": "forge build --force --build-info",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        },
+        {
+          "gateId": "format-build-size-warnings",
+          "result": "passed",
+          "scope": "committed gas snapshot for the local test suite.",
+          "path": ".gas-snapshot",
+          "sha256": "sha256:667c5c45550ff08c8b2ff58222ee286dd4dafd8bcbd681a5da45bfabbbd812bf",
+          "command": "forge snapshot --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "unit-integration-fuzz-invariant-tests",
+      "status": "completed",
+      "note": "85 local tests pass, 0 failed, 0 skipped across 15 suites. Fuzz runs=256, invariant runs=256/depth=30.",
+      "evidence": [
+        {
+          "gateId": "unit-integration-fuzz-invariant-tests",
+          "result": "passed",
+          "scope": "forge test of local suite (fork excluded): 85 passed / 0 failed / 0 skipped across 15 suites.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "callback-authentication-and-permission-mask",
+      "status": "completed",
+      "note": "CREATE2 address encodes 0x10cc; getHookPermissions() returns exactly five flags; every entrypoint is onlyPoolManager.",
+      "evidence": [
+        {
+          "gateId": "callback-authentication-and-permission-mask",
+          "result": "passed",
+          "scope": "Permission-mask (0x10cc) and onlyPoolManager authentication tests in local suite.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "static-analysis",
+      "status": "completed",
+      "note": "Slither 0.11.6: 1407 total across 130 contracts; 12 touch src/; all false-positive or informational. No true-positive bug.",
+      "evidence": [
+        {
+          "gateId": "static-analysis",
+          "result": "passed",
+          "scope": "Slither triage of every finding referencing hook source (12/12 dispositioned).",
+          "path": "evidence/slither-hook-triage.md",
+          "sha256": "sha256:3e48e65bded203b442a440358da2636498a1398decde4115c2e0df989673f82b",
+          "command": "slither . --foundry-compile-all --json .tmp/slither.json",
+          "toolVersion": "slither 0.11.6",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        },
+        {
+          "gateId": "static-analysis",
+          "result": "passed",
+          "scope": "Machine-readable extraction of src/ findings + global severity histogram.",
+          "path": "evidence/slither-hook-findings.json",
+          "sha256": "sha256:30c34ec7f8f83bacd185b354f562b2e09de99a11dd1bec0b202e7cda729f979a",
+          "command": "node -e '<extract src findings from slither JSON>'",
+          "toolVersion": "slither 0.11.6",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "mainnet-fork-pinned-and-head-smoke",
+      "status": "completed",
+      "note": "Contributor-local fork evidence. 3/3 fork tests pass against real mainnet PoolManager at block 25666892 + head smoke.",
+      "evidence": [
+        {
+          "gateId": "mainnet-fork-pinned-and-head-smoke",
+          "result": "passed",
+          "scope": "forge test of test/fork/* against real mainnet PoolManager: 3 passed / 0 failed.",
+          "path": "evidence/forge-test-fork.txt",
+          "sha256": "sha256:dd1fd821e8075b5d51313f3e3389f6927c61cbd971fabb0209300d30429e982c",
+          "command": "MAINNET_RPC_URL=https://eth.drpc.org forge test --match-path 'test/fork/*' -vv",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        },
+        {
+          "gateId": "mainnet-fork-pinned-and-head-smoke",
+          "result": "passed",
+          "scope": "deployment-evidence for PoolManager: runtime codehash + Sourcify match.",
+          "path": "submissions/volfee/deployment-evidence.json",
+          "sha256": "sha256:71b8898b65c4eb9baa4e82ef0ad97c7390ac6ac01746488d463fb30b0bc97ece",
+          "command": "cast codehash + resolve-deployment.mjs + Sourcify v2",
+          "toolVersion": "cast 1.7.1 (4072e48705 2026-05-08) + node resolve-deployment.mjs",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "fee-four-quadrant-tests",
+      "status": "completed",
+      "note": "Four-quadrant fee charging proven by test/ProgrammableFee.t.sol (13 tests across all swap modes).",
+      "evidence": [
+        {
+          "gateId": "fee-four-quadrant-tests",
+          "result": "passed",
+          "scope": "Four-quadrant fee tests in test/ProgrammableFee.t.sol (test_03_quadrants_quote0/quote1, test_04_basisIsExecutedNotRequested, testFuzz_feeSplit). 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "before-swap-delta-four-quadrant-proof",
+      "status": "completed",
+      "note": "beforeSwapReturnDelta enabled for before-quadrants (quote specified). Proven by test/ProgrammableFee.t.sol test_03_quadrants_quote0 and test_05_beforeSwapCarvesFee.",
+      "evidence": [
+        {
+          "gateId": "before-swap-delta-four-quadrant-proof",
+          "result": "passed",
+          "scope": "beforeSwap delta on before-quadrants, no beforeSwap delta on after-quadrants, tested in ProgrammableFee.t.sol. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "after-swap-return-delta-invariants",
+      "status": "completed",
+      "note": "afterSwapReturnDelta enabled for all quadrants. Solvency invariant (balance == projectFeeOwed + owed) at runs=256/depth=30.",
+      "evidence": [
+        {
+          "gateId": "after-swap-return-delta-invariants",
+          "result": "passed",
+          "scope": "Solvency invariant under afterSwapReturnDelta at runs=256/depth=30 in VolFeeInvariants + VolFeeDrainInvariant suites. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "programmable-fee-formula-and-claim-tests",
+      "status": "completed",
+      "note": "Non-additive split (10bps+20bps), owner-only claim with per-claim destination. Tested by ProgrammableFee.t.sol + HardValues.t.sol + OwnerReserveIsolation.t.sol.",
+      "evidence": [
+        {
+          "gateId": "programmable-fee-formula-and-claim-tests",
+          "result": "passed",
+          "scope": "Non-additive split, owner-only claim and per-claim destination proven by ProgrammableFee + HardValues + OwnerReserveIsolation. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "delta-conservation-invariants",
+      "status": "completed",
+      "note": "Custom accounting delta conservation: balance == projectFeeOwed + programmableFeeOwed at runs=256/depth=30.",
+      "evidence": [
+        {
+          "gateId": "delta-conservation-invariants",
+          "result": "passed",
+          "scope": "Stateful invariant proving delta conservation after mixed swap/claim sequences at runs=256/depth=30. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "erc6909-liability-solvency-invariants",
+      "status": "completed",
+      "note": "Hook uses ERC-6909 claims for quote custody. Solvency invariant proven by invariant suites at runs=256/depth=30.",
+      "evidence": [
+        {
+          "gateId": "erc6909-liability-solvency-invariants",
+          "result": "passed",
+          "scope": "ERC-6909 claim-backed solvency: hook quote balance == projectFeeOwed + owed at every confirmed state. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "reserve-reconstruction-and-solvency-tests",
+      "status": "completed",
+      "note": "liability reconstruction from events + getters. Solvency invariant holds across mixed sequences at runs=256/depth=30.",
+      "evidence": [
+        {
+          "gateId": "reserve-reconstruction-and-solvency-tests",
+          "result": "passed",
+          "scope": "liability tracks events + getters; solvency invariant holds across mixed swap/claim sequences. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "external-call-reentrancy-and-failure-tests",
+      "status": "completed",
+      "note": "External calls (PoolManager take/settle, WETH, tkn totalSupply). Reentrancy protection by test/Reentrancy.t.sol + test/audit/ReentrancyDeeper.t.sol.",
+      "evidence": [
+        {
+          "gateId": "external-call-reentrancy-and-failure-tests",
+          "result": "passed",
+          "scope": "Reentrancy and failure coverage: test/Reentrancy.t.sol, test/audit/ReentrancyDeeper.t.sol, test/HardValues.t.sol. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "dependency-failure-tests",
+      "status": "completed",
+      "note": "Dependency failure (PoolManager, WETH, tkn) tested by HardValues.t.sol + ReentrancyDeeper.t.sol + atomic-failure invariant suites.",
+      "evidence": [
+        {
+          "gateId": "dependency-failure-tests",
+          "result": "passed",
+          "scope": "Dependency failure: nested-unlock revert, zero/reverting recipient, atomic-failure invariants. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "package-dependency-lock-and-closure-verification",
+      "status": "completed",
+      "note": "dependency-lock.json binds compiler + every remapping prefix to exact package version + npm integrity + source repo/commit where available. Review-target (closure v10) binds complete Solidity import closure.",
+      "evidence": [
+        {
+          "gateId": "package-dependency-lock-and-closure-verification",
+          "result": "passed",
+          "scope": "Dependency lock binds remapping prefixes with versions + integrities; review-target binds full Solidity import closure by content hash.",
+          "path": "submissions/volfee/dependency-lock.json",
+          "sha256": "sha256:f62432b654fe5c6cdb28ad42135ebf92e22b8617bea850a3146308a1f6ef9ad1",
+          "command": "node build-review-target.mjs ...",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "callback-selector-return-length-and-self-call-tests",
+      "status": "completed",
+      "note": "Callback selectors + self-call suppression: BaseHook enforces selectors; nested unlock reverts AlreadyUnlocked.",
+      "evidence": [
+        {
+          "gateId": "callback-selector-return-length-and-self-call-tests",
+          "result": "passed",
+          "scope": "Callback selectors (BaseHook) + self-call suppression (Reentrancy.t.sol nested-unlock revert). 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "event-reorg-backfill-freshness-tests",
+      "status": "completed",
+      "note": "Events (ProgrammableFeeCollected, FloorToppedUp, FloorRatcheted, ProgrammableFeeClaimed) reconcile to getters. Tested by test_11_eventsReconcile + test_10_solvencyAndNoCrossPoolNetting.",
+      "evidence": [
+        {
+          "gateId": "event-reorg-backfill-freshness-tests",
+          "result": "passed",
+          "scope": "Event reconciliation + getter parity proven by test_11_eventsReconcile and test_10_solvencyAndNoCrossPoolNetting in ProgrammableFee.t.sol. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "external-liquidity-solvency-and-exit-invariants",
+      "status": "completed",
+      "note": "Hook-held WETH liability solvency + capped fee exit proven by invariant suites + FloorHonor.t.sol.",
+      "evidence": [
+        {
+          "gateId": "external-liquidity-solvency-and-exit-invariants",
+          "result": "passed",
+          "scope": "liability solvency, capped fee, partial honor, no-unbacked-delta proven by invariant suites + FloorHonor.t.sol. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "project-custody-solvency-and-exit-tests",
+      "status": "completed",
+      "note": "Hook custody of ERC-6909 claims: fee exit, owner-only claim isolation, solvency identity proven across FloorHonor + OwnerReserveIsolation + invariants.",
+      "evidence": [
+        {
+          "gateId": "project-custody-solvency-and-exit-tests",
+          "result": "passed",
+          "scope": "Hook custody: claim backing, fee exit, owner-only claim isolation, solvency identity. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "project-external-call-authentication-and-failure-tests",
+      "status": "completed",
+      "note": "External call auth (onlyPoolManager) + failure (reverting recipient, zero dest) proven by VolFeeHook + HardValues + ReentrancyDeeper.",
+      "evidence": [
+        {
+          "gateId": "project-external-call-authentication-and-failure-tests",
+          "result": "passed",
+          "scope": "External call auth (onlyPoolManager) + failure scenarios. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "project-value-flow-conservation-and-claim-tests",
+      "status": "completed",
+      "note": "Value conservation across swap charge -> split -> liability + liability -> claim + fee proven by ProgrammableFee + FeeBypassAndAccounting + invariants.",
+      "evidence": [
+        {
+          "gateId": "project-value-flow-conservation-and-claim-tests",
+          "result": "passed",
+          "scope": "Value conservation across fee, split, liability, liability, claim, fee. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "return-delta-execution-event",
+      "status": "completed",
+      "note": "Execution events emitted during return-delta callbacks (ProgrammableFeeCollected, FloorToppedUp, FloorRatcheted). Event-to-liability reconciliation by test_11_eventsReconcile.",
+      "evidence": [
+        {
+          "gateId": "return-delta-execution-event",
+          "result": "passed",
+          "scope": "Execution events during return-delta callbacks and event-to-liability reconciliation. 85/85 local tests pass.",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "dynamic-fee-properties",
+      "status": "completed",
+      "note": "The dynamic LP fee is monotonic non-decreasing in realized volatility and hard-bounded to [MIN_LP_FEE, MAX_LP_FEE] (max < 100%, exact-output preserved); proven by VolMath fuzz and the VolAdaptiveFee bounds tests and the invariant fee-in-bounds property.",
+      "evidence": [
+        {
+          "gateId": "dynamic-fee-properties",
+          "result": "passed",
+          "scope": "test/VolMath.t.sol fuzz + test/VolAdaptiveFee.t.sol bounds + invariant_feeAlwaysInBounds (fee stays within immutable bounds under any swap sequence).",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    },
+    {
+      "id": "dynamic-fee-manipulation-tests",
+      "status": "completed",
+      "note": "The fee on swap N is read in beforeSwap from volatility state accumulated before N; the EWMA is updated only in afterSwap, so a swap cannot lower its own fee. Volatility suppression by wash trading costs the mandatory fee each swap and yields no private gain (fee floored at MIN_LP_FEE).",
+      "evidence": [
+        {
+          "gateId": "dynamic-fee-manipulation-tests",
+          "result": "passed",
+          "scope": "test/VolAdaptiveFee.t.sol::test_manipulation_ownSwapCannotLowerOwnFee (ewmaAfter > ewmaBefore; feeAfter >= feeBefore; monotonic across a volatile sequence).",
+          "path": "evidence/forge-test-local.txt",
+          "sha256": "sha256:a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6",
+          "command": "forge test --no-match-path 'test/fork/*'",
+          "toolVersion": "forge 1.7.1 (4072e48705 2026-05-08)",
+          "commit": "b849768e46f1b6e6b2c9fb70980d9374f0743621",
+          "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+        }
+      ]
+    }
+  ]
+}
