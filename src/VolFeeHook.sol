@@ -15,6 +15,9 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+
+import {VolMath} from "./lib/VolMath.sol";
 
 /**
  * @title VolFeeHook
@@ -55,7 +58,8 @@ import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
  *
  *      DYNAMIC-FEE POOL: This hook MUST be bound to a DYNAMIC-FEE pool (fee = 0x800000). The hook
  *      sets the initial LP fee via `poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE)` in
- *      {_afterInitialize}. Future phases will auto-calibrate the LP fee to realized volatility.
+ *      {_afterInitialize}. The LP fee auto-calibrates to realized volatility measured on-chain from
+ *      tick movement between swaps (read-before/update-after manipulation resistance).
  *
  *      selfCallPolicy = same-pool-swap-forbidden: this hook NEVER initiates a swap on its own pool
  *      (it contains no `poolManager.swap` call). v4 additionally no-ops hook callbacks on self-calls
@@ -74,6 +78,7 @@ import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
 contract VolFeeHook is BaseHook {
     using CurrencySettler for Currency;
     using SafeCast for uint256;
+    using StateLibrary for IPoolManager;
 
     /* ------------------------------------------------------------------ */
     /*                          Immutable config                          */
@@ -103,6 +108,21 @@ contract VolFeeHook is BaseHook {
     /// @notice Initial LP fee for the dynamic-fee pool (immutable ctor arg, must be <= 1_000_000).
     uint24 public immutable INITIAL_LP_FEE;
 
+    /// @notice EWMA smoothing factor in basis points (0-10000).
+    uint16 public immutable ALPHA_BPS;
+
+    /// @notice Numerator of volatility multiplier for LP fee calculation.
+    uint256 public immutable K_NUM;
+
+    /// @notice Denominator of volatility multiplier for LP fee calculation.
+    uint256 public immutable K_DEN;
+
+    /// @notice Minimum LP fee in pips.
+    uint24 public immutable MIN_LP_FEE;
+
+    /// @notice Maximum LP fee in pips.
+    uint24 public immutable MAX_LP_FEE;
+
     /* ------------------------------------------------------------------ */
     /*                          Bound-pool state                          */
     /* ------------------------------------------------------------------ */
@@ -115,6 +135,12 @@ contract VolFeeHook is BaseHook {
 
     /// @dev True once a canonical pool has been bound.
     bool private _bound;
+
+    /// @notice Last observed tick from the pool. Updated in {_afterSwap}.
+    int24 public lastTick;
+
+    /// @notice EWMA of realized volatility (tick delta). Updated in {_afterSwap}.
+    uint256 public ewmaVol;
 
     /* ------------------------------------------------------------------ */
     /*                        Liability mappings                          */
@@ -161,27 +187,42 @@ contract VolFeeHook is BaseHook {
     error InvalidDestination();
     /// @dev Project address is zero in constructor.
     error InvalidProject();
-    /// @dev Initial LP fee is invalid (> 1_000_000).
+    /// @dev Initial LP fee is invalid (> 1_000_000 or outside [minLpFee, maxLpFee]).
     error BadInitialFee();
     /// @dev Pool is not a dynamic-fee pool.
     error NotDynamicFee();
+    /// @dev Volatility parameters are invalid.
+    error BadVolParams();
 
     /**
      * @param _pm The Uniswap v4 PoolManager singleton.
      * @param _feeTotalBps The configured total fee in basis points.
      * @param _quote The pool's quote currency (the asset fees are measured/collected in).
      * @param _project The project address that can claim the project fee portion.
-     * @param _initialLpFee The initial LP fee to set on the dynamic-fee pool (must be <= 1_000_000).
+     * @param _initialLpFee The initial LP fee to set on the dynamic-fee pool (must be in [minLpFee, maxLpFee]).
+     * @param _alphaBps EWMA smoothing factor in basis points (0-10000).
+     * @param _kNumerator Numerator of volatility multiplier.
+     * @param _kDenominator Denominator of volatility multiplier (must be > 0).
+     * @param _minLpFee Minimum LP fee in pips.
+     * @param _maxLpFee Maximum LP fee in pips.
      */
     constructor(
         IPoolManager _pm,
         uint16 _feeTotalBps,
         Currency _quote,
         address _project,
-        uint24 _initialLpFee
+        uint24 _initialLpFee,
+        uint16 _alphaBps,
+        uint256 _kNumerator,
+        uint256 _kDenominator,
+        uint24 _minLpFee,
+        uint24 _maxLpFee
     ) BaseHook(_pm) {
         if (_project == address(0)) revert InvalidProject();
-        if (_initialLpFee > 1_000_000) revert BadInitialFee();
+        if (_kDenominator == 0) revert BadVolParams();
+        if (_alphaBps > 10000) revert BadVolParams();
+        if (_minLpFee > _maxLpFee || _maxLpFee > 1_000_000) revert BadVolParams();
+        if (_initialLpFee < _minLpFee || _initialLpFee > _maxLpFee) revert BadInitialFee();
 
         feeTotalBps = _feeTotalBps;
         uint256 selected = uint256(_feeTotalBps) * 100;
@@ -189,6 +230,11 @@ contract VolFeeHook is BaseHook {
         quoteCurrency = _quote;
         PROJECT = _project;
         INITIAL_LP_FEE = _initialLpFee;
+        ALPHA_BPS = _alphaBps;
+        K_NUM = _kNumerator;
+        K_DEN = _kDenominator;
+        MIN_LP_FEE = _minLpFee;
+        MAX_LP_FEE = _maxLpFee;
     }
 
     /* ------------------------------------------------------------------ */
@@ -225,9 +271,9 @@ contract VolFeeHook is BaseHook {
      *      {PoolAlreadyBound} on any second init.
      *
      *      REQUIRES: the pool must be a DYNAMIC-FEE pool (fee = 0x800000). Sets the initial LP fee
-     *      via `poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE)`.
+     *      via `poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE)`. Initializes lastTick and ewmaVol.
      */
-    function _afterInitialize(address, PoolKey calldata key, uint160, int24)
+    function _afterInitialize(address, PoolKey calldata key, uint160, int24 tick)
         internal
         override
         returns (bytes4)
@@ -245,6 +291,10 @@ contract VolFeeHook is BaseHook {
         // Set the initial LP fee on the dynamic-fee pool.
         poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE);
 
+        // Initialize volatility tracking state.
+        lastTick = tick;
+        ewmaVol = 0;
+
         return IHooks.afterInitialize.selector;
     }
 
@@ -258,17 +308,23 @@ contract VolFeeHook is BaseHook {
      *      claims and return it as a positive `beforeSwapReturnDelta` on the specified currency; v4
      *      then carves it out of the swap (exact-input: less is swapped; exact-output: extra is
      *      produced for the hook). AFTER-quadrant swaps are handled in {_afterSwap}.
+     *
+     *      LP FEE OVERRIDE: Returns the computed LP fee from current ewmaVol (before this swap's update)
+     *      with OVERRIDE_FEE_FLAG. This ensures the swap's own tick movement cannot affect its own fee.
      */
     function _beforeSwap(address, PoolKey calldata key, SwapParams calldata params, bytes calldata)
         internal
         override
         returns (bytes4, BeforeSwapDelta, uint24)
     {
+        // Compute LP fee from CURRENT ewmaVol (reflects only prior swaps) - manipulation resistant
+        uint24 lpFee = VolMath.feeFromVol(ewmaVol, INITIAL_LP_FEE, K_NUM, K_DEN, MIN_LP_FEE, MAX_LP_FEE);
+
         // collect BEFORE iff the quote currency is the specified currency of this swap
         bool specifiedTokenIs0 = (params.amountSpecified < 0) == params.zeroForOne;
         bool quoteIsSpecified = (key.currency0 == quoteCurrency) == specifiedTokenIs0;
         if (!quoteIsSpecified) {
-            return (IHooks.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, uint24(0));
+            return (IHooks.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, lpFee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
         }
 
         uint256 grossQuote =
@@ -276,7 +332,7 @@ contract VolFeeHook is BaseHook {
         uint256 total = _collect(key.toId(), grossQuote);
 
         // Positive specified delta => hook is credited `total` of the (quote) specified currency.
-        return (IHooks.beforeSwap.selector, toBeforeSwapDelta(total.toInt128(), int128(0)), uint24(0));
+        return (IHooks.beforeSwap.selector, toBeforeSwapDelta(total.toInt128(), int128(0)), lpFee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
     }
 
     /**
@@ -286,6 +342,9 @@ contract VolFeeHook is BaseHook {
      *      `afterSwap` delta (`feeDelta`) on the unspecified (quote) currency. BEFORE-quadrant swaps
      *      were already collected in {_beforeSwap} (`feeDelta == 0` here). The fee basis is ALWAYS the
      *      executed quote volume.
+     *
+     *      VOLATILITY UPDATE: After fee collection, update ewmaVol and lastTick from THIS swap's tick move.
+     *      This update only affects FUTURE swaps (manipulation resistance).
      */
     function _afterSwap(
         address,
@@ -309,6 +368,12 @@ contract VolFeeHook is BaseHook {
             uint256 grossQuote = quoteDelta < 0 ? uint256(int256(-quoteDelta)) : uint256(int256(quoteDelta));
             feeDelta = _collect(poolId, grossQuote).toInt128();
         }
+
+        // ---- Volatility state update (after fee collection, affects only FUTURE swaps) ----
+        (, int24 curTick,,) = poolManager.getSlot0(poolId);
+        uint256 sample = VolMath.absTickDelta(curTick, lastTick);
+        ewmaVol = VolMath.ewmaUpdate(ewmaVol, sample, ALPHA_BPS);
+        lastTick = curTick;
 
         return (IHooks.afterSwap.selector, feeDelta);
     }
@@ -416,5 +481,17 @@ contract VolFeeHook is BaseHook {
     /// @dev Ceil division: ceil(a / b). Returns 0 when a == 0.
     function _ceilDiv(uint256 a, uint256 b) internal pure returns (uint256) {
         return a == 0 ? 0 : (a - 1) / b + 1;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                      View functions                                */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * @notice Preview the current LP fee based on accumulated volatility.
+     * @return The LP fee in pips that would be charged on the next swap.
+     */
+    function previewLpFee() external view returns (uint24) {
+        return VolMath.feeFromVol(ewmaVol, INITIAL_LP_FEE, K_NUM, K_DEN, MIN_LP_FEE, MAX_LP_FEE);
     }
 }

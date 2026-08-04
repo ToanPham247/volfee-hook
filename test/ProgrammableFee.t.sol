@@ -32,6 +32,13 @@ contract ProgrammableFeeTest is Test, Deployers {
     uint256 internal constant PLATFORM_RATE = 1000; // hundredths-of-bip = 10 bps
     uint256 internal constant RATE_DENOM = 1_000_000;
 
+    // Volatility fee parameters for constructor
+    uint16 internal constant ALPHA_BPS = 3000;
+    uint256 internal constant K_NUM = 50;
+    uint256 internal constant K_DEN = 1;
+    uint24 internal constant MIN_LP_FEE = 500;
+    uint24 internal constant MAX_LP_FEE = 100000;
+
     // wide, deep liquidity so ordinary swaps fully execute (executed == requested)
     int24 internal constant WIDE_LOWER = -887220; // divisible by tickSpacing 60, within [minTick,maxTick]
     int24 internal constant WIDE_UPPER = 887220;
@@ -59,10 +66,32 @@ contract ProgrammableFeeTest is Test, Deployers {
     /* ------------------------------------------------------------------ */
 
     function _deployHook(uint16 feeTotalBps, Currency quote) internal returns (VolFeeHook h) {
-        bytes memory args = abi.encode(IPoolManager(address(manager)), feeTotalBps, quote, PROJECT, INITIAL_LP_FEE);
+        bytes memory args = abi.encode(
+            IPoolManager(address(manager)),
+            feeTotalBps,
+            quote,
+            PROJECT,
+            INITIAL_LP_FEE,
+            ALPHA_BPS,
+            K_NUM,
+            K_DEN,
+            MIN_LP_FEE,
+            MAX_LP_FEE
+        );
         (address addr, bytes32 salt) =
             HookMiner.find(address(this), FLAGS, type(VolFeeHook).creationCode, args);
-        h = new VolFeeHook{salt: salt}(IPoolManager(address(manager)), feeTotalBps, quote, PROJECT, INITIAL_LP_FEE);
+        h = new VolFeeHook{salt: salt}(
+            IPoolManager(address(manager)),
+            feeTotalBps,
+            quote,
+            PROJECT,
+            INITIAL_LP_FEE,
+            ALPHA_BPS,
+            K_NUM,
+            K_DEN,
+            MIN_LP_FEE,
+            MAX_LP_FEE
+        );
         require(address(h) == addr, "mine");
     }
 
