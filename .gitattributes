@@ -1,0 +1,25 @@
+# Evidence artifacts are content-addressed by sha256 in gate-status.json. Pin them as binary
+# (no EOL conversion) so their recorded hashes stay valid on every platform, regardless of the
+# consumer's core.autocrlf setting. Stored and checked out byte-for-byte.
+.gas-snapshot        -text
+deployment-evidence.json -text
+gate-status.json     -text
+evidence/**          -text
+
+# The submission + the 6-file application package are bound by sha256 in review-target.json
+# (closure method v10). Pin them -text too so the recorded review-target hashes reproduce
+# byte-for-byte on any checkout (LF), independent of core.autocrlf.
+submission.json          -text
+compatibility-report.json -text
+review-target.json       -text
+PROPOSAL.md              -text
+THREAT_MODEL.md          -text
+TEST_PLAN.md             -text
+EVIDENCE.md              -text
+LICENSE                  -text
+
+# Source and test Solidity are bound by sha256 in review-target.json (closure v10).
+# Pin them -text so the recorded hashes reproduce byte-for-byte on every checkout (LF),
+# independent of core.autocrlf. Without this, autocrlf smudges an LF-committed blob to
+# CRLF in the worktree, so a rebuilt review-target no longer matches the exact HEAD blob.
+*.sol -text

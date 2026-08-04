@@ -1,0 +1,16 @@
+# Foundry build artifacts
+out/
+cache/
+broadcast/
+.forge-snapshots/
+
+# Scratch / transient tool output (e.g. the multi-hundred-MB raw Slither JSON)
+.tmp/
+
+# Node dependencies (reconstruct with `npm install --ignore-scripts`; pinned by package-lock.json)
+node_modules/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
