@@ -208,6 +208,14 @@ contract VolFeeHook is BaseHook {
     error WrongStartPrice();
     /// @dev The initialized pool's tick spacing does not equal the precommitted EXPECTED_TICK_SPACING.
     error WrongTickSpacing();
+    /// @dev A quote-SPECIFIED swap partial-filled (hit a price limit). The mandatory fee is charged in
+    ///      {_beforeSwap} on the requested amount, which is only executed-basis when the swap fully executes;
+    ///      a partial fill would overcharge, so the whole swap reverts (executed-basis-or-revert). Retry the
+    ///      swap without a tight price limit, or specify the other currency.
+    error PartialFillNotSupported();
+    /// @dev A quote-SPECIFIED exact-input swap whose mandatory fee would consume the entire input, leaving no
+    ///      positive AMM leg (the reviewed one-wei dust defect). The whole swap reverts.
+    error DustNoAmmLeg();
 
     /**
      * @param _pm The Uniswap v4 PoolManager singleton.
@@ -391,20 +399,33 @@ contract VolFeeHook is BaseHook {
         BalanceDelta delta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
-        // Quote is the UNSPECIFIED (after-quadrant) currency iff isQuote0 != specifiedTokenIs0.
-        // Scoped so the intermediate booleans don't stay live across the rest of the frame.
-        bool quoteIsUnspecified;
-        {
-            bool specifiedTokenIs0 = (params.amountSpecified < 0) == params.zeroForOne;
-            quoteIsUnspecified = (key.currency0 == quoteCurrency) != specifiedTokenIs0;
-        }
-
-        // ---- Fee (after-quadrant only; before-quadrant already collected in _beforeSwap) ----
+        bool specifiedTokenIs0 = (params.amountSpecified < 0) == params.zeroForOne;
+        bool quoteIsUnspecified = (key.currency0 == quoteCurrency) != specifiedTokenIs0;
         int128 feeDelta = 0;
         if (quoteIsUnspecified) {
             int128 quoteDelta = (key.currency0 == quoteCurrency) ? delta.amount0() : delta.amount1();
             uint256 grossQuote = quoteDelta < 0 ? uint256(int256(-quoteDelta)) : uint256(int256(quoteDelta));
             feeDelta = _collect(poolId, grossQuote).toInt128();
+        } else {
+            // ---- BEFORE-quadrant: quote is the SPECIFIED currency; the fee was charged in {_beforeSwap} on
+            //      the REQUESTED |amountSpecified| via a beforeSwapReturnDelta that carves `total` off the swap.
+            //      The AMM leg reported HERE (this `delta`, which is the pool swap delta net of that carve)
+            //      therefore executes `requested - total` for exact-input and `requested + total` for
+            //      exact-output on a FULL fill. A smaller AMM leg means a price-limited PARTIAL fill, where the
+            //      fee (charged on `requested`) would overcharge the actually-executed quote — so we revert the
+            //      whole swap (executed-basis-or-revert — the reviewed partial-fill fee defect). A dust swap
+            //      whose AMM leg rounds to zero also fails here (no positive AMM leg). ----
+            int128 sd = specifiedTokenIs0 ? delta.amount0() : delta.amount1();
+            uint256 execSpec = sd < 0 ? uint256(int256(-sd)) : uint256(int256(sd));
+            uint256 req = params.amountSpecified < 0 ? uint256(-params.amountSpecified) : uint256(params.amountSpecified);
+            uint256 total = _ceilDiv(req * effectiveRate, RATE_DENOM);
+            uint256 expectedAmm = params.amountSpecified < 0 ? (req > total ? req - total : 0) : (req + total);
+            // Dust: an exact-input whose fee consumes the entire input leaves NO positive AMM leg — the reviewed
+            // one-wei defect (fee taken, zero core swap). Reject it.
+            if (expectedAmm == 0) revert DustNoAmmLeg();
+            // Partial fill: the AMM leg is smaller than a full fill would produce, so the fee (on `requested`)
+            // would overcharge the executed quote. Revert (executed-basis-or-revert).
+            if (execSpec != expectedAmm) revert PartialFillNotSupported();
         }
 
         // ---- Volatility state update (after fee collection, affects only FUTURE swaps) ----
