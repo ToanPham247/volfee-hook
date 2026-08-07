@@ -1,40 +1,8 @@
-# Antifragile Floor Hook — Foundry configuration
-# Coherent pinned baseline (see compatibility.lock.json):
-#   @openzeppelin/uniswap-hooks 1.1.1 -> @openzeppelin/contracts 5.5.0,
-#   @uniswap/v4-core 1.0.2, @uniswap/v4-periphery 1.0.3, forge-std 1.9.3
-#
-# solc 0.8.26 + evm_version cancun are required by Uniswap v4 (transient storage / EIP-1153).
-# Remappings live in remappings.txt (auto-detection disabled for deterministic resolution).
-
 [profile.default]
 src = "src"
-test = "test"
 out = "out"
-libs = ["node_modules"]
-auto_detect_remappings = false
+libs = ["lib"]
 solc = "0.8.26"
-evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
-bytecode_hash = "none"
-
-[profile.default.fuzz]
-runs = 256
-
-[profile.default.invariant]
-runs = 256
-depth = 30
-fail_on_revert = false
-call_override = false
-
-# Fork tests (test/fork/*) run against the real Ethereum-mainnet v4 PoolManager.
-# The alias resolves to the MAINNET_RPC_URL env var (see .env / .env.example); if unset,
-# the fork tests fall back in-code to the public endpoint below. This is a PUBLIC read RPC,
-# so no secret is required. Etherscan is optional (source-verification is done via Sourcify).
-[rpc_endpoints]
-mainnet = "${MAINNET_RPC_URL}"
-
-[etherscan]
-mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 1 }
-
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+via_ir = true

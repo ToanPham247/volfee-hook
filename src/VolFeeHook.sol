@@ -123,6 +123,13 @@ contract VolFeeHook is BaseHook {
     /// @notice Maximum LP fee in pips.
     uint24 public immutable MAX_LP_FEE;
 
+    /// @notice The EXACT launched (non-quote) token this hook is precommitted to bind. Closes first-pool capture.
+    address public immutable EXPECTED_TOKEN;
+    /// @notice The EXACT sqrtPriceX96 the canonical pool must be initialized at.
+    uint160 public immutable EXPECTED_SQRT_PRICE_X96;
+    /// @notice The EXACT tick spacing of the canonical PoolKey.
+    int24 public immutable EXPECTED_TICK_SPACING;
+
     /* ------------------------------------------------------------------ */
     /*                          Bound-pool state                          */
     /* ------------------------------------------------------------------ */
@@ -193,6 +200,14 @@ contract VolFeeHook is BaseHook {
     error NotDynamicFee();
     /// @dev Volatility parameters are invalid.
     error BadVolParams();
+    /// @dev The launch precommit (token / start price / tick spacing) is zero or malformed in the constructor.
+    error BadLaunchPrecommit();
+    /// @dev The initialized pool's non-quote token does not equal the precommitted EXPECTED_TOKEN.
+    error WrongToken();
+    /// @dev The initialized pool's start price does not equal the precommitted EXPECTED_SQRT_PRICE_X96.
+    error WrongStartPrice();
+    /// @dev The initialized pool's tick spacing does not equal the precommitted EXPECTED_TICK_SPACING.
+    error WrongTickSpacing();
 
     /**
      * @param _pm The Uniswap v4 PoolManager singleton.
@@ -205,6 +220,11 @@ contract VolFeeHook is BaseHook {
      * @param _kDenominator Denominator of volatility multiplier (must be > 0).
      * @param _minLpFee Minimum LP fee in pips.
      * @param _maxLpFee Maximum LP fee in pips.
+     * @param _expectedToken The EXACT launched (non-quote) token this hook is precommitted to. {_afterInitialize}
+     *        reverts {WrongToken} for any other token, so no attacker can front-run the first initialization and
+     *        capture the hook with a foreign token (the reviewed first-pool-capture defect).
+     * @param _expectedSqrtPriceX96 The EXACT sqrtPriceX96 the canonical pool must be initialized at.
+     * @param _expectedTickSpacing The EXACT tick spacing of the canonical PoolKey.
      */
     constructor(
         IPoolManager _pm,
@@ -216,13 +236,21 @@ contract VolFeeHook is BaseHook {
         uint256 _kNumerator,
         uint256 _kDenominator,
         uint24 _minLpFee,
-        uint24 _maxLpFee
+        uint24 _maxLpFee,
+        address _expectedToken,
+        uint160 _expectedSqrtPriceX96,
+        int24 _expectedTickSpacing
     ) BaseHook(_pm) {
         if (_project == address(0)) revert InvalidProject();
         if (_kDenominator == 0) revert BadVolParams();
         if (_alphaBps > 10000) revert BadVolParams();
         if (_minLpFee > _maxLpFee || _maxLpFee > 1_000_000) revert BadVolParams();
         if (_initialLpFee < _minLpFee || _initialLpFee > _maxLpFee) revert BadInitialFee();
+        // Precommit the exact launch PoolKey identity. Token must be non-zero and distinct from the quote,
+        // price must be non-zero, and tick spacing must be a valid v4 spacing (1..32767).
+        if (_expectedToken == address(0) || _expectedToken == Currency.unwrap(_quote)) revert BadLaunchPrecommit();
+        if (_expectedSqrtPriceX96 == 0) revert BadLaunchPrecommit();
+        if (_expectedTickSpacing <= 0 || _expectedTickSpacing > 32767) revert BadLaunchPrecommit();
 
         feeTotalBps = _feeTotalBps;
         uint256 selected = uint256(_feeTotalBps) * 100;
@@ -235,6 +263,9 @@ contract VolFeeHook is BaseHook {
         K_DEN = _kDenominator;
         MIN_LP_FEE = _minLpFee;
         MAX_LP_FEE = _maxLpFee;
+        EXPECTED_TOKEN = _expectedToken;
+        EXPECTED_SQRT_PRICE_X96 = _expectedSqrtPriceX96;
+        EXPECTED_TICK_SPACING = _expectedTickSpacing;
     }
 
     /* ------------------------------------------------------------------ */
@@ -273,7 +304,7 @@ contract VolFeeHook is BaseHook {
      *      REQUIRES: the pool must be a DYNAMIC-FEE pool (fee = 0x800000). Sets the initial LP fee
      *      via `poolManager.updateDynamicLPFee(key, INITIAL_LP_FEE)`. Initializes lastTick and ewmaVol.
      */
-    function _afterInitialize(address, PoolKey calldata key, uint160, int24 tick)
+    function _afterInitialize(address, PoolKey calldata key, uint160 sqrtPriceX96, int24 tick)
         internal
         override
         returns (bytes4)
@@ -283,8 +314,15 @@ contract VolFeeHook is BaseHook {
         if (_bound) revert PoolAlreadyBound();
         if (!LPFeeLibrary.isDynamicFee(key.fee)) revert NotDynamicFee();
 
-        _bound = true;
+        // Precommitted launch identity: the non-quote token, start price and tick spacing must match the
+        // constructor commitments EXACTLY. This closes the reviewed first-pool-capture defect — an attacker
+        // cannot front-run the first initialization and bind the hook to a foreign token/pool.
         Currency t = key.currency0 == q ? key.currency1 : key.currency0;
+        if (Currency.unwrap(t) != EXPECTED_TOKEN) revert WrongToken();
+        if (sqrtPriceX96 != EXPECTED_SQRT_PRICE_X96) revert WrongStartPrice();
+        if (key.tickSpacing != EXPECTED_TICK_SPACING) revert WrongTickSpacing();
+
+        _bound = true;
         tknCurrency = t;
         poolId = key.toId();
 

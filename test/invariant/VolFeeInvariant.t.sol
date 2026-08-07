@@ -21,21 +21,10 @@ import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 
 import {VolFeeHook} from "../../src/VolFeeHook.sol";
 
-/* ====================================================================== */
-/*                                Handler                                  */
-/* ====================================================================== */
-
-/**
- * @notice Bounded, random-action handler for VolFeeHook invariant testing.
- *         Each action is a REAL swap through the v4 PoolManager.
- *         Ghost counters record successful executions for coverage proof.
- */
 contract VolFeeHandler {
     Vm internal constant vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
-
     uint160 internal constant MIN_PRICE_LIMIT = 4295128739 + 1;
     uint160 internal constant MAX_PRICE_LIMIT = 1461446703485210103287273052203988822378723970342 - 1;
-
     IPoolManager internal immutable manager;
     PoolSwapTest internal immutable swapRouter;
     VolFeeHook internal immutable hook;
@@ -43,21 +32,11 @@ contract VolFeeHandler {
     PoolId internal immutable id;
     Currency internal immutable quote;
     Currency internal immutable tkn;
-
-    // ---- ghost coverage counters (successful executions) ----
     uint256 public okSwapExactIn;
     uint256 public okSwapVolatile;
-    // ---- attempts (for revert visibility) ----
     uint256 public attempts;
 
-    constructor(
-        IPoolManager _m,
-        PoolSwapTest _r,
-        VolFeeHook _h,
-        PoolKey memory _key,
-        Currency _quote,
-        Currency _tkn
-    ) {
+    constructor(IPoolManager _m, PoolSwapTest _r, VolFeeHook _h, PoolKey memory _key, Currency _quote, Currency _tkn) {
         manager = _m;
         swapRouter = _r;
         hook = _h;
@@ -65,8 +44,6 @@ contract VolFeeHandler {
         id = _key.toId();
         quote = _quote;
         tkn = _tkn;
-
-        // Approve router to spend handler's tokens
         vm.prank(address(this));
         MockERC20(Currency.unwrap(_quote)).approve(address(_r), type(uint256).max);
         vm.prank(address(this));
@@ -78,37 +55,21 @@ contract VolFeeHandler {
     }
 
     function _checkInvariants() internal view {
-        // 1. Fee always in bounds
         uint24 currentFee = hook.previewLpFee();
         uint24 minFee = hook.MIN_LP_FEE();
         uint24 maxFee = hook.MAX_LP_FEE();
         require(currentFee >= minFee && currentFee <= maxFee, "fee out of bounds");
-
-        // 2. Solvency: hook's ERC-6909 quote-claim balance == programmableFeeOwed + projectFeeOwed
         uint256 hookBalance = manager.balanceOf(address(hook), quote.toId());
         uint256 owed = hook.programmableFeeOwed(id, quote) + hook.projectFeeOwed(id, quote);
         require(hookBalance == owed, "solvency broken");
-
-        // 3. lastTick tracks pool
         (, int24 poolTick,,) = StateLibrary.getSlot0(manager, id);
         int24 hookTick = hook.lastTick();
         require(hookTick == poolTick, "lastTick mismatch");
     }
 
     function _swap(bool zeroForOne, int256 amtSpec) internal {
-        swapRouter.swap(
-            key,
-            SwapParams({
-                zeroForOne: zeroForOne,
-                amountSpecified: amtSpec,
-                sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
-            }),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            bytes("")
-        );
+        swapRouter.swap(key, SwapParams({zeroForOne: zeroForOne, amountSpecified: amtSpec, sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), bytes(""));
     }
-
-    /* ---- swap exact-in: bounded amount [1e12, 5e18] ---- */
 
     function swapExactIn(uint256 amtSeed, bool zeroForOne) external {
         attempts++;
@@ -117,8 +78,6 @@ contract VolFeeHandler {
         _checkInvariants();
         okSwapExactIn++;
     }
-
-    /* ---- swap volatile: LARGE amount [1e17, 5e18] to stress volatility ---- */
 
     function swapVolatile(uint256 amtSeed, bool zeroForOne) external {
         attempts++;
@@ -129,17 +88,6 @@ contract VolFeeHandler {
     }
 }
 
-/* ====================================================================== */
-/*                          Invariant test suite                          */
-/* ====================================================================== */
-
-/**
- * @notice Stateful invariant suite for {VolFeeHook}: 64 runs x depth 32 of bounded random
- *         actions against ONE hook+pool, asserting:
- *         1. Fee always in bounds: MIN_LP_FEE <= previewLpFee() <= MAX_LP_FEE
- *         2. Solvency: hook's ERC-6909 quote balance == programmableFeeOwed + projectFeeOwed
- *         3. lastTick tracks pool: hook.lastTick() == pool's current tick
- */
 contract VolFeeInvariants is Test, Deployers {
     using StateLibrary for IPoolManager;
 
@@ -168,11 +116,8 @@ contract VolFeeInvariants is Test, Deployers {
     function setUp() public {
         deployFreshManagerAndRouters();
         deployMintAndApprove2Currencies();
-
-        // Use currency1 as quote, currency0 as tkn
         quote = currency1;
         tkn = currency0;
-
         MockERC20(Currency.unwrap(tkn)).mint(address(this), 1e24);
         MockERC20(Currency.unwrap(quote)).mint(address(this), 1e30);
         MockERC20(Currency.unwrap(currency0)).approve(address(swapRouter), type(uint256).max);
@@ -180,97 +125,42 @@ contract VolFeeInvariants is Test, Deployers {
         MockERC20(Currency.unwrap(currency0)).approve(address(modifyLiquidityRouter), type(uint256).max);
         MockERC20(Currency.unwrap(currency1)).approve(address(modifyLiquidityRouter), type(uint256).max);
 
-        // Deploy hook with full 10-arg constructor
-        bytes memory args = abi.encode(
-            IPoolManager(address(manager)),
-            uint16(300), // feeTotalBps = 3%
-            quote,
-            PROJECT,
-            INITIAL_LP_FEE,
-            ALPHA_BPS,
-            K_NUM,
-            K_DEN,
-            MIN_LP_FEE,
-            MAX_LP_FEE
-        );
+        address expectedToken = Currency.unwrap(currency0);
+        bytes memory args = abi.encode(address(manager), uint16(300), quote, PROJECT, INITIAL_LP_FEE, ALPHA_BPS, K_NUM, K_DEN, MIN_LP_FEE, MAX_LP_FEE, expectedToken, SQRT_PRICE_1_1, TS);
         (address addr, bytes32 salt) = HookMiner.find(address(this), FLAGS, type(VolFeeHook).creationCode, args);
-        hook = new VolFeeHook{salt: salt}(
-            IPoolManager(address(manager)),
-            uint16(300),
-            quote,
-            PROJECT,
-            INITIAL_LP_FEE,
-            ALPHA_BPS,
-            K_NUM,
-            K_DEN,
-            MIN_LP_FEE,
-            MAX_LP_FEE
-        );
+        hook = new VolFeeHook{salt: salt}(IPoolManager(address(manager)), uint16(300), quote, PROJECT, INITIAL_LP_FEE, ALPHA_BPS, K_NUM, K_DEN, MIN_LP_FEE, MAX_LP_FEE, expectedToken, SQRT_PRICE_1_1, TS);
         require(address(hook) == addr, "mine");
 
         poolKey = PoolKey(currency0, currency1, DYNAMIC_FEE, TS, IHooks(address(hook)));
         id = poolKey.toId();
         manager.initialize(poolKey, SQRT_PRICE_1_1);
-        modifyLiquidityRouter.modifyLiquidity(
-            poolKey,
-            ModifyLiquidityParams({tickLower: -887220, tickUpper: 887220, liquidityDelta: int256(1e21), salt: 0}),
-            bytes("")
-        );
+        modifyLiquidityRouter.modifyLiquidity(poolKey, ModifyLiquidityParams({tickLower: -887220, tickUpper: 887220, liquidityDelta: int256(1e21), salt: 0}), bytes(""));
 
-        // Seed some initial swaps to activate volatility tracking and set lastTick
-        swapRouter.swap(
-            poolKey,
-            SwapParams({zeroForOne: false, amountSpecified: -int256(100e18), sqrtPriceLimitX96: MAX_PRICE_LIMIT}),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            bytes("")
-        );
-        swapRouter.swap(
-            poolKey,
-            SwapParams({zeroForOne: true, amountSpecified: -int256(100e18), sqrtPriceLimitX96: MIN_PRICE_LIMIT}),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            bytes("")
-        );
+        swapRouter.swap(poolKey, SwapParams({zeroForOne: false, amountSpecified: -int256(100e18), sqrtPriceLimitX96: MAX_PRICE_LIMIT}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), bytes(""));
+        swapRouter.swap(poolKey, SwapParams({zeroForOne: true, amountSpecified: -int256(100e18), sqrtPriceLimitX96: MIN_PRICE_LIMIT}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), bytes(""));
 
-        // Verify invariants hold after setup
         _verifyInvariants();
 
-        // Deploy + fund the handler
-        handler = new VolFeeHandler(
-            IPoolManager(address(manager)),
-            swapRouter,
-            hook,
-            poolKey,
-            quote,
-            tkn
-        );
+        handler = new VolFeeHandler(IPoolManager(address(manager)), swapRouter, hook, poolKey, quote, tkn);
         MockERC20(Currency.unwrap(tkn)).mint(address(handler), 1e24);
         MockERC20(Currency.unwrap(quote)).mint(address(handler), 1e30);
-
         targetContract(address(handler));
     }
 
     function _verifyInvariants() internal view {
-        // 1. Fee always in bounds
         uint24 currentFee = hook.previewLpFee();
         uint24 minFee = hook.MIN_LP_FEE();
         uint24 maxFee = hook.MAX_LP_FEE();
         assertGe(currentFee, minFee, "fee below MIN_LP_FEE");
         assertLe(currentFee, maxFee, "fee above MAX_LP_FEE");
-
-        // 2. Solvency
         uint256 hookBalance = manager.balanceOf(address(hook), quote.toId());
         uint256 owed = hook.programmableFeeOwed(id, quote) + hook.projectFeeOwed(id, quote);
         assertEq(hookBalance, owed, "solvency broken: balance != owed");
-
-        // 3. lastTick tracks pool
         (, int24 poolTick,,) = manager.getSlot0(id);
         int24 hookTick = hook.lastTick();
         assertEq(hookTick, poolTick, "lastTick does not match pool tick");
     }
 
-    /* -------------------------------- invariants -------------------------------- */
-
-    /// @notice The adaptive LP fee can NEVER leave its immutable bounds.
     function invariant_feeAlwaysInBounds() public view {
         uint24 currentFee = hook.previewLpFee();
         uint24 minFee = hook.MIN_LP_FEE();
@@ -279,30 +169,25 @@ contract VolFeeInvariants is Test, Deployers {
         assertLe(currentFee, maxFee, "fee above MAX_LP_FEE");
     }
 
-    /// @notice Solvency: hook's ERC-6909 quote-claim balance EXACTLY equals owed fees.
     function invariant_solvency() public view {
         uint256 hookBalance = manager.balanceOf(address(hook), quote.toId());
         uint256 owed = hook.programmableFeeOwed(id, quote) + hook.projectFeeOwed(id, quote);
         assertEq(hookBalance, owed, "solvency broken: balance != owed");
     }
 
-    /// @notice lastTick tracks pool: hook.lastTick() equals pool's current tick.
     function invariant_lastTickTracksPool() public view {
         (, int24 poolTick,,) = manager.getSlot0(id);
         int24 hookTick = hook.lastTick();
         assertEq(hookTick, poolTick, "lastTick does not match pool tick");
     }
 
-    /// @notice Deterministic coverage: each handler action executes.
     function test_coverage_allActionsExecutable() public {
         handler.swapExactIn(1e18, true);
         handler.swapExactIn(1e18, false);
         handler.swapVolatile(1e18, true);
         handler.swapVolatile(1e18, false);
-
         assertGt(handler.okSwapExactIn(), 0, "swapExactIn not executable");
         assertGt(handler.okSwapVolatile(), 0, "swapVolatile not executable");
-
         invariant_feeAlwaysInBounds();
         invariant_solvency();
         invariant_lastTickTracksPool();
