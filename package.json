@@ -1,5 +1,5 @@
 {
-  "name": "antifragile-floor-hook",
+  "name": "volfee-hook",
   "version": "0.1.0",
   "private": true,
   "description": "Antifragile Floor: a Uniswap v4 hook with a self-funded, monotonic on-chain price floor (Programmable Hookathon).",
