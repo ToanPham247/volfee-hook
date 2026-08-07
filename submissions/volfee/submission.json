@@ -285,7 +285,7 @@
   "sharedAcrossPools": false,
   "poolNamespace": "One hook instance backs exactly one canonical launch PoolKey; all liability state is keyed by that single PoolId.",
   "poolAdmission": {
-   "enforcement": "afterInitialize binds ONCE (PoolAlreadyBound on any later init) and REQUIRES the pool to match the constructor-precommitted EXPECTED_TOKEN, EXPECTED_SQRT_PRICE_X96 and EXPECTED_TICK_SPACING (WrongToken / WrongStartPrice / WrongTickSpacing), plus a dynamic-fee pool (NotDynamicFee) containing the quote (NotQuotePool). This closes first-pool capture — an attacker cannot front-run the first initialization and bind the hook to a foreign token/pool. See test/VolFeeCapture.t.sol and the launch graph submissions/volfee/launch.json (test/VolFeeLaunch.t.sol).",
+   "enforcement": "afterInitialize binds ONCE (PoolAlreadyBound on any later init) and REQUIRES the pool to match the constructor-precommitted EXPECTED_TOKEN, EXPECTED_SQRT_PRICE_X96 and EXPECTED_TICK_SPACING (WrongToken / WrongStartPrice / WrongTickSpacing), plus a dynamic-fee pool (NotDynamicFee) containing the quote (NotQuotePool). This closes first-pool capture — an attacker cannot front-run the first initialization and bind the hook to a foreign token/pool. See test/VolFeeCapture.t.sol and the launch graph docs/launch.json (test/VolFeeLaunch.t.sol).",
    "factoryOrRegistry": "The launcher initializes exactly one canonical WETH-paired PoolKey whose hooks field is this mined hook address; the hook self-binds the first such PoolId at _afterInitialize (no separate factory registry or provenance hash is used).",
    "alternativePoolBehavior": "Once bound, any second pool referencing this hook address reverts PoolAlreadyBound at initialization; pools without this hook are unaffected and never inherit fee or volatility behavior.",
    "rejectionRule": "Revert NotQuotePool for a PoolKey lacking the quote currency, NotDynamicFee for a non-dynamic-fee pool, and PoolAlreadyBound for any initialization after the first."
@@ -1630,7 +1630,7 @@
    "test/invariant/VolFeeInvariant.t.sol"
   ],
   "compilerBuildInfoPaths": [
-   "out/build-info/499b27fec563926b.json"
+   "out/build-info/62107b4322c4a85a.json"
   ],
   "specificationPath": "docs/PROGRAMMABLE_FEE.md",
   "testEvidencePath": ".gas-snapshot",

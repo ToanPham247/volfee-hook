@@ -20,7 +20,7 @@ import {VolFeeHook} from "../src/VolFeeHook.sol";
 
 /// @notice EXECUTABLE launch graph: proves a normal deployer can launch a tradable VolFee pool end-to-end and
 ///         that the launch is exclusive (precommit binding), atomic-safe (occupied CREATE2 / wrong key revert),
-///         and post-conditions hold. Mirrors the immutable steps described in `submissions/volfee/launch.json`.
+///         and post-conditions hold. Mirrors the immutable steps described in `docs/launch.json`.
 contract VolFeeLaunchTest is Test, Deployers {
     using StateLibrary for IPoolManager;
 
