@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "model": "volfee",
+  "summary": "The complete, executable launch graph for a VolFee pool: deploy the token, mine and CREATE2-deploy the hook precommitted to the exact (token, startPrice, tickSpacing), initialize the canonical dynamic-fee pool (the hook validates the precommit and binds once), add initial liquidity, and trade. Every step is proven end-to-end in test/VolFeeLaunch.t.sol against a real PoolManager.",
+  "executableProof": {
+    "test": "test/VolFeeLaunch.t.sol",
+    "cases": [
+      "test_launch_endToEnd_tradable — deploy token, mine+deploy hook, initialize pool, add liquidity, buy; asserts hook address == mined, permission bits == 0x10cc, bound token/poolId exact, base LP fee set, mandatory fee accrued, post-state solvency (hook 6909 == owed).",
+      "test_launch_secondInit_reverts_afterBound — a second initialization on any distinct key reverts after the first bind (no capture, no duplication)."
+    ],
+    "forkProof": "test/fork/VolFeeFork.t.sol runs the same launch + trade against the real mainnet PoolManager 0x000000000004444c5dc75cB358380D2e3dE08A90."
+  },
+  "steps": [
+    {
+      "id": "1-token",
+      "action": "deploy the launched ERC-20",
+      "note": "A standard fixed-supply ERC-20 (the non-quote side). No transfer tax, no rebase, no mint-after-deploy. Sorted against the quote so the pool's currency0/currency1 ordering is deterministic.",
+      "rollback": "If token deployment fails, nothing else has run — no pool, no hook binding.",
+      "postcondition": "token address known; distinct from the quote."
+    },
+    {
+      "id": "2-hook",
+      "action": "mine + CREATE2-deploy the VolFeeHook",
+      "hashBound": {
+        "creationCode": "type(VolFeeHook).creationCode (built from the exact pinned solc 0.8.26 / cancun / optimizer-200; see compatibility.lock.json and out/build-info/*)",
+        "permissionMask": "0x10cc (afterInitialize, beforeSwap, afterSwap, beforeSwapReturnDelta, afterSwapReturnDelta)",
+        "constructorArgs": "(poolManager, feeTotalBps, quote, project, initialLpFee, alphaBps, kNum, kDen, minLpFee, maxLpFee, EXPECTED_TOKEN, EXPECTED_SQRT_PRICE_X96, EXPECTED_TICK_SPACING)",
+        "salt": "mined by HookMiner.find so the deployed address's low 14 bits equal the mask 0x10cc; the exact salt/address are content-derived from the creationCode + constructor args."
+      },
+      "occupancy": "CREATE2 to a mined address; if that address is already occupied the deployment reverts (standard EVM CREATE2 collision), so the launch cannot be front-run at the address level.",
+      "rollback": "If mining or deployment fails, no pool is bound.",
+      "postcondition": "hook deployed at the mined address; address low-14-bits == 0x10cc; EXPECTED_TOKEN / EXPECTED_SQRT_PRICE_X96 / EXPECTED_TICK_SPACING are immutably set."
+    },
+    {
+      "id": "3-initialize",
+      "action": "initialize the canonical dynamic-fee PoolKey",
+      "exactPoolKey": {
+        "currency0": "min(quote, token)",
+        "currency1": "max(quote, token)",
+        "fee": "LPFeeLibrary.DYNAMIC_FEE_FLAG (0x800000)",
+        "tickSpacing": "EXPECTED_TICK_SPACING",
+        "hooks": "the mined hook address"
+      },
+      "atomicBinding": "_afterInitialize REQUIRES the pool's non-quote token == EXPECTED_TOKEN, sqrtPriceX96 == EXPECTED_SQRT_PRICE_X96, and tickSpacing == EXPECTED_TICK_SPACING (else WrongToken / WrongStartPrice / WrongTickSpacing); it also requires a dynamic-fee pool (else NotDynamicFee) and binds ONCE (else PoolAlreadyBound on any later init). This closes first-pool capture: an attacker cannot bind the hook to a foreign token/pool.",
+      "rollback": "Any mismatch reverts the whole initialize; no partial state (tknCurrency/poolId) is written.",
+      "postcondition": "hook.poolId == key.toId(); hook.tknCurrency == token; base LP fee set via updateDynamicLPFee; volatility state (lastTick, ewmaVol) initialized."
+    },
+    {
+      "id": "4-liquidity",
+      "action": "add initial liquidity via the standard v4 modifyLiquidity",
+      "custody": "LPs own their own positions in the PoolManager. The hook holds NO liquidity and NO pool assets — only its two fee-liability ERC-6909 quote claims (programmableFeeOwed for OWNER, projectFeeOwed for PROJECT), fully accounted (hook 6909 balance == programmableFeeOwed + projectFeeOwed).",
+      "rollback": "modifyLiquidity is atomic; a failed add reverts without touching the hook.",
+      "postcondition": "pool has tradable liquidity; hook custody unchanged."
+    },
+    {
+      "id": "5-trade",
+      "action": "swap (the coin is directly tradable)",
+      "fee": "Each swap pays the mandatory Programmable volume fee on EXECUTED gross quote volume: quote-unspecified swaps charge on the executed BalanceDelta (partial-fill-safe); quote-specified swaps charge in beforeSwap and REVERT on a price-limited partial fill or a dust input that leaves no positive AMM leg (executed-basis-or-revert). The LP fee auto-calibrates to realized volatility, bounded to [minLpFee, maxLpFee].",
+      "rollback": "Any settlement or fee failure reverts the whole swap atomically.",
+      "postcondition": "mandatory fee accrued on the executed quote; hook solvent (6909 == owed)."
+    }
+  ],
+  "authorities": {
+    "platformFeeOwner": "0x4957f49620AFf3Adbbe8195a4f633E49cc93376c (immutable, owner-only claim, no mutation/sweep)",
+    "projectFeeBeneficiary": "immutable PROJECT ctor arg (project-only claim)",
+    "admin": "none",
+    "upgrade": "none",
+    "pause": "none"
+  }
+}
