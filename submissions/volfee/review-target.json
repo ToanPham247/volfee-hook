@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "standardVersion": "1.3.0",
-  "submissionHash": "sha256:a981dff75883f60fbbbc7163484dd1f305977cef2a91813c774b873bc352352c",
+  "submissionHash": "sha256:dee474a00d2dbb293ee34dc2aaadd46379d01bb08e199f2cadbbd11ea3bb8cba",
   "closureMethod": "declared-bytes-and-resolved-solidity-and-javascript-imports-v10",
   "closure": {
     "status": "complete",
@@ -11,14 +11,14 @@
     {
       "path": ".gas-snapshot",
       "kind": "test-evidence",
-      "bytes": 3827,
-      "sha256": "667c5c45550ff08c8b2ff58222ee286dd4dafd8bcbd681a5da45bfabbbd812bf"
+      "bytes": 5170,
+      "sha256": "584f9e2833510ec97a2881bab4dd92c75bb3d27488fb7b6b2b072a0dd33c619c"
     },
     {
       "path": "compatibility.lock.json",
       "kind": "project-surface-evidence:volfee-hook",
-      "bytes": 5714,
-      "sha256": "1148c58d664f6c54bce2145871421b1ca9033feec6336e793c7e985c685753e5"
+      "bytes": 5753,
+      "sha256": "dd008e1aeacff1a1487fc5284d27eb81e666ff405dd62e1968f917d0a33b1519"
     },
     {
       "path": "docs/AUDIT.md",
@@ -47,14 +47,14 @@
     {
       "path": "evidence/forge-test-fork.txt",
       "kind": "gate-evidence:mainnet-fork-pinned-and-head-smoke",
-      "bytes": 630,
-      "sha256": "dd1fd821e8075b5d51313f3e3389f6927c61cbd971fabb0209300d30429e982c"
+      "bytes": 629,
+      "sha256": "a37bad9859a457bdc0bdf118332e2b94704d6d11ff2c18c38b4573bccf38a74b"
     },
     {
       "path": "evidence/forge-test-local.txt",
       "kind": "gate-evidence:unit-integration-fuzz-invariant-tests",
-      "bytes": 1539,
-      "sha256": "a9a2bec5e21bcc865670ed97ea0af9d4090b8ed9820ca096ed6404c000bda2c6"
+      "bytes": 1595,
+      "sha256": "749f965db5b6189b67c7398897e5afe7ee995124e61d06f9f168434023c2cb2a"
     },
     {
       "path": "evidence/slither-hook-findings.json",
@@ -71,8 +71,8 @@
     {
       "path": "foundry.toml",
       "kind": "compiler-config",
-      "bytes": 1340,
-      "sha256": "077465e41020b839f920bb289ec985d33ac04435967f7a3600254d78ee56c504"
+      "bytes": 1354,
+      "sha256": "525d5c6059c33de249afa379c6f4204dbe46d53f8c3f7371ae0b71bfafd28ded"
     },
     {
       "path": "node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol",
@@ -1715,8 +1715,8 @@
     {
       "path": "src/VolFeeHook.sol",
       "kind": "source-entry",
-      "bytes": 24999,
-      "sha256": "497998783f82bd9b1f3f772861ffb01b333224885ed3bafe45a030774c9ba69e"
+      "bytes": 29952,
+      "sha256": "fb08897058481c51e9a39b74630cba7f565f7369a51ca6decbd0708100eeb70e"
     },
     {
       "path": "src/lib/VolMath.sol",
@@ -1752,13 +1752,13 @@
       "path": "submissions/volfee/compatibility-report.json",
       "kind": "package:compatibility-report.json",
       "bytes": 13839,
-      "sha256": "cad10206aa5cfdf14787ddcb534db121900a09169e6955800bcff5140e4a9d7d"
+      "sha256": "a819738f98410f0e8bc92c93458577037452af0010e48dd972f0fdf4dd1bae3a"
     },
     {
       "path": "submissions/volfee/dependency-lock.json",
       "kind": "dependency-lock",
-      "bytes": 2419,
-      "sha256": "f62432b654fe5c6cdb28ad42135ebf92e22b8617bea850a3146308a1f6ef9ad1"
+      "bytes": 2418,
+      "sha256": "6a876736351f27625678d88e6db89f03044947b75eebb23aceaa21ddf043aa4c"
     },
     {
       "path": "submissions/volfee/deployment-evidence.json",
@@ -1769,20 +1769,38 @@
     {
       "path": "submissions/volfee/submission.json",
       "kind": "package:submission.json",
-      "bytes": 85760,
-      "sha256": "1b344a8104c27b1573cb54c1061b3eff010d44c087eeffdf052c29289c1749d1"
+      "bytes": 86672,
+      "sha256": "3cdd757f099211f7ab9a2ae28c89f638616287f341d770e5d8ab1bedbeae52b5"
     },
     {
       "path": "test/ProgrammableFee.t.sol",
       "kind": "test-entry",
-      "bytes": 33021,
-      "sha256": "9756c5cc0b2a03a4bd6def80ea329b0be8fcbe5b12277cd0dfb50fb256114edf"
+      "bytes": 27995,
+      "sha256": "0919edea4c2135fdf2801e758ad2f13d3ae9d536c49314380c77b3db25599cfe"
     },
     {
       "path": "test/VolAdaptiveFee.t.sol",
       "kind": "test-entry",
-      "bytes": 15969,
-      "sha256": "3c4111e39f22eb1f8c7edaeb9d799300e51956b672b4a28d08fecf81d474ecb7"
+      "bytes": 11034,
+      "sha256": "b69e886cd8672ce2ce40424ce436fd370d4cdb0f505bf92fea38ccf7aa37ee06"
+    },
+    {
+      "path": "test/VolFeeCapture.t.sol",
+      "kind": "test-entry",
+      "bytes": 5622,
+      "sha256": "1c53b5b178b64948bf74aacb9df1f636f4fe6f03dbb3b81744fece7aa220438b"
+    },
+    {
+      "path": "test/VolFeeLaunch.t.sol",
+      "kind": "test-entry",
+      "bytes": 6448,
+      "sha256": "8c99ab3f7cbfe12bd4b7ea07bf41003ca26ba4f9f7adf81e63e5884d6a4c7ff0"
+    },
+    {
+      "path": "test/VolFeePartialFill.t.sol",
+      "kind": "test-entry",
+      "bytes": 5669,
+      "sha256": "6e0302b90ea6fb6257e917e5f043ade4a7f74afded37e3a8dc71d10b033d0866"
     },
     {
       "path": "test/VolMath.t.sol",
@@ -1793,14 +1811,14 @@
     {
       "path": "test/fork/VolFeeFork.t.sol",
       "kind": "test-entry",
-      "bytes": 12124,
-      "sha256": "25705bc8ec27b7f79dda97e5e4f52c7f64364cbc140c67dc237e0485545fe66d"
+      "bytes": 9381,
+      "sha256": "56fdeb23aca8097ceb61b3ffbf287cb966f620cd04aafcc4557b36f88ce0864c"
     },
     {
       "path": "test/invariant/VolFeeInvariant.t.sol",
       "kind": "test-entry",
-      "bytes": 12393,
-      "sha256": "ac3a58a5621631d9cbe8b04b39cb2bacc33f652c9d2534edd95fb74e9edb6029"
+      "bytes": 9458,
+      "sha256": "c4dd22ae46cd35f8f4f262c01b3ec6fabf86588736efaa45c51a2519b89b510d"
     }
   ],
   "externalImports": [
@@ -4344,6 +4362,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IHooks.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IHooks.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4399,6 +4444,33 @@
     {
       "specifier": "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
       "importer": "test/VolAdaptiveFee.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/interfaces/IPoolManager.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
       "resolvedPath": "node_modules/@uniswap/v4-core/src/interfaces/IPoolManager.sol",
@@ -4497,6 +4569,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4542,6 +4641,24 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/libraries/StateLibrary.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/StateLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/libraries/StateLibrary.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/StateLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/libraries/StateLibrary.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4555,6 +4672,15 @@
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
       "resolvedPath": "node_modules/@uniswap/v4-core/src/libraries/StateLibrary.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol",
       "kind": "solidity-package-dependency-import",
       "packageName": "@uniswap/v4-core"
     },
@@ -4579,6 +4705,24 @@
     {
       "specifier": "@uniswap/v4-core/src/test/PoolSwapTest.sol",
       "importer": "test/VolAdaptiveFee.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/test/PoolSwapTest.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/test/PoolSwapTest.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/test/PoolSwapTest.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/test/PoolSwapTest.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
       "resolvedPath": "node_modules/@uniswap/v4-core/src/test/PoolSwapTest.sol",
@@ -4633,6 +4777,24 @@
     {
       "specifier": "@uniswap/v4-core/src/types/BalanceDelta.sol",
       "importer": "test/VolAdaptiveFee.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/BalanceDelta.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/BalanceDelta.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/BalanceDelta.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/BalanceDelta.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
       "resolvedPath": "node_modules/@uniswap/v4-core/src/types/BalanceDelta.sol",
@@ -4713,6 +4875,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/types/Currency.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/Currency.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/Currency.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/Currency.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/Currency.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/Currency.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/Currency.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4758,6 +4947,24 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/types/PoolId.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolId.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolId.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolId.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolId.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4812,6 +5019,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/types/PoolKey.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolKey.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolKey.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolKey.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolKey.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolKey.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolKey.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4866,6 +5100,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/src/types/PoolOperation.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolOperation.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolOperation.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolOperation.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolOperation.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/src/types/PoolOperation.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/src/types/PoolOperation.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4902,6 +5163,33 @@
     },
     {
       "specifier": "@uniswap/v4-core/test/utils/Deployers.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/test/utils/Deployers.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/test/utils/Deployers.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/test/utils/Deployers.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/test/utils/Deployers.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/test/utils/Deployers.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/test/utils/Deployers.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
@@ -4915,6 +5203,15 @@
       "remappingPrefix": "@uniswap/v4-core/",
       "remappingTarget": "node_modules/@uniswap/v4-core/",
       "resolvedPath": "node_modules/@uniswap/v4-core/test/utils/Deployers.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "@uniswap/v4-core/test/utils/SortTokens.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-core/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/test/utils/SortTokens.sol",
       "kind": "solidity-package-dependency-import",
       "packageName": "@uniswap/v4-core"
     },
@@ -4948,6 +5245,33 @@
     {
       "specifier": "@uniswap/v4-periphery/src/utils/HookMiner.sol",
       "importer": "test/VolAdaptiveFee.t.sol",
+      "remappingPrefix": "@uniswap/v4-periphery/",
+      "remappingTarget": "node_modules/@uniswap/v4-periphery/",
+      "resolvedPath": "node_modules/@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-periphery"
+    },
+    {
+      "specifier": "@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "@uniswap/v4-periphery/",
+      "remappingTarget": "node_modules/@uniswap/v4-periphery/",
+      "resolvedPath": "node_modules/@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-periphery"
+    },
+    {
+      "specifier": "@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "@uniswap/v4-periphery/",
+      "remappingTarget": "node_modules/@uniswap/v4-periphery/",
+      "resolvedPath": "node_modules/@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-periphery"
+    },
+    {
+      "specifier": "@uniswap/v4-periphery/src/utils/HookMiner.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
       "remappingPrefix": "@uniswap/v4-periphery/",
       "remappingTarget": "node_modules/@uniswap/v4-periphery/",
       "resolvedPath": "node_modules/@uniswap/v4-periphery/src/utils/HookMiner.sol",
@@ -5011,6 +5335,33 @@
     {
       "specifier": "forge-std/Test.sol",
       "importer": "test/VolAdaptiveFee.t.sol",
+      "remappingPrefix": "forge-std/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/forge-std/src/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/forge-std/src/Test.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "forge-std/Test.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "forge-std/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/forge-std/src/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/forge-std/src/Test.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "forge-std/Test.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "forge-std/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/forge-std/src/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/forge-std/src/Test.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "forge-std/Test.sol",
+      "importer": "test/VolFeePartialFill.t.sol",
       "remappingPrefix": "forge-std/",
       "remappingTarget": "node_modules/@uniswap/v4-core/lib/forge-std/src/",
       "resolvedPath": "node_modules/@uniswap/v4-core/lib/forge-std/src/Test.sol",
@@ -5100,6 +5451,33 @@
     },
     {
       "specifier": "solmate/src/test/utils/mocks/MockERC20.sol",
+      "importer": "test/ProgrammableFee.t.sol",
+      "remappingPrefix": "solmate/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/solmate/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/solmate/src/test/utils/mocks/MockERC20.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "solmate/src/test/utils/mocks/MockERC20.sol",
+      "importer": "test/VolFeeCapture.t.sol",
+      "remappingPrefix": "solmate/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/solmate/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/solmate/src/test/utils/mocks/MockERC20.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "solmate/src/test/utils/mocks/MockERC20.sol",
+      "importer": "test/VolFeeLaunch.t.sol",
+      "remappingPrefix": "solmate/",
+      "remappingTarget": "node_modules/@uniswap/v4-core/lib/solmate/",
+      "resolvedPath": "node_modules/@uniswap/v4-core/lib/solmate/src/test/utils/mocks/MockERC20.sol",
+      "kind": "solidity-package-dependency-import",
+      "packageName": "@uniswap/v4-core"
+    },
+    {
+      "specifier": "solmate/src/test/utils/mocks/MockERC20.sol",
       "importer": "test/fork/VolFeeFork.t.sol",
       "remappingPrefix": "solmate/",
       "remappingTarget": "node_modules/@uniswap/v4-core/lib/solmate/",
@@ -5118,5 +5496,5 @@
     }
   ],
   "javascriptImportResolutions": [],
-  "reviewTargetHash": "sha256:6c0131de2f73077fc12b6eb8b8d78da989fbac5346047d67a5c893525c05a086"
+  "reviewTargetHash": "sha256:d8116990c9d3beec98fe3c02e99686fc374b2103a5893f8f532360b9eb730b23"
 }

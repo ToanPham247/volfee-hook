@@ -1,12 +1,12 @@
 No files changed, compilation skipped
 
 Ran 2 tests for test/fork/VolFeeFork.t.sol:VolFeeForkPinnedTest
-[PASS] test_fork_dynamicFee_and_mandatoryFee_againstRealPoolManager() (gas: 203131077)
-[PASS] test_fork_realPoolManager_identity() (gas: 8983)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 2.63s (2.16s CPU time)
+[PASS] test_fork_dynamicFee_and_mandatoryFee_againstRealPoolManager() (gas: 26589179)
+[PASS] test_fork_realPoolManager_identity() (gas: 9336)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 14.30s (13.89s CPU time)
 
 Ran 1 test for test/fork/VolFeeFork.t.sol:VolFeeForkHeadSmokeTest
-[PASS] test_fork_head_smoke() (gas: 203020788)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 18.35s (14.32s CPU time)
+[PASS] test_fork_head_smoke() (gas: 26376506)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 14.93s (8.29s CPU time)
 
-Ran 2 test suites in 18.35s (20.98s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)
+Ran 2 test suites in 14.94s (29.24s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)

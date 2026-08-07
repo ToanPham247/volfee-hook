@@ -1,25 +1,30 @@
-[PASS] test_volatility_raisesFee() (gas: 28614058)
-Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 18.57s (24.45s CPU time)
++===========================================================+
+| VolFeeHandler | swapExactIn  | 64338 | 0       | 0        |
+|---------------+--------------+-------+---------+----------|
+| VolFeeHandler | swapVolatile | 63662 | 0       | 0        |
+╰---------------+--------------+-------+---------+----------╯
 
-Ran 18 tests for test/ProgrammableFee.t.sol:ProgrammableFeeTest
-[PASS] testFuzz_feeSplit(uint16,uint96) (runs: 48, μ: 58191492, ~: 35642791)
-[PASS] test_00_dynamicFeePool_initialLpFeeSet() (gas: 27676909)
-[PASS] test_00_staticFeePool_revertsNotDynamicFee() (gas: 27326805)
-[PASS] test_01_rateLevels_platformAlways10bps() (gas: 83086225)
-[PASS] test_02_nonAdditive_3pct() (gas: 347435825)
-[PASS] test_03_quadrants_quote0() (gas: 28211186)
-[PASS] test_03_quadrants_quote1() (gas: 347746098)
-[PASS] test_04_basisIsExecutedNotRequested() (gas: 27884627)
-[PASS] test_05_onlyCanonicalPoolAccrues() (gas: 28263929)
-[PASS] test_06_hookEntrypointsAreOnlyPoolManager() (gas: 27349183)
-[PASS] test_07_ownerClaimsPlatformToArbitraryDestinations() (gas: 28072139)
-[PASS] test_08_nonOwnerCannotClaimPlatform() (gas: 27907895)
-[PASS] test_09_projectClaimsProjectFeeToArbitraryDestinations() (gas: 28072478)
-[PASS] test_10_nonProjectCannotClaimProjectFee() (gas: 27911477)
-[PASS] test_11_noStoredRecipient_ownerOnlyRedirect() (gas: 27929716)
-[PASS] test_11_noStoredRecipient_projectOnlyRedirect() (gas: 27929999)
-[PASS] test_12_solvencyAndNoCrossPoolNetting() (gas: 87229080)
-[PASS] test_13_eventsReconcile() (gas: 347480798)
-Suite result: ok. 18 passed; 0 failed; 0 skipped; finished in 33.03s (52.00s CPU time)
+[PASS] invariant_lastTickTracksPool() (runs: 256, calls: 128000, reverts: 0)
 
-Ran 4 test suites in 33.04s (63.32s CPU time): 58 tests passed, 0 failed, 0 skipped (58 total tests)
+╭---------------+--------------+-------+---------+----------╮
+| Contract      | Selector     | Calls | Reverts | Discards |
++===========================================================+
+| VolFeeHandler | swapExactIn  | 64338 | 0       | 0        |
+|---------------+--------------+-------+---------+----------|
+| VolFeeHandler | swapVolatile | 63662 | 0       | 0        |
+╰---------------+--------------+-------+---------+----------╯
+
+[PASS] invariant_solvency() (runs: 256, calls: 128000, reverts: 0)
+
+╭---------------+--------------+-------+---------+----------╮
+| Contract      | Selector     | Calls | Reverts | Discards |
++===========================================================+
+| VolFeeHandler | swapExactIn  | 64338 | 0       | 0        |
+|---------------+--------------+-------+---------+----------|
+| VolFeeHandler | swapVolatile | 63662 | 0       | 0        |
+╰---------------+--------------+-------+---------+----------╯
+
+[PASS] test_coverage_allActionsExecutable() (gas: 515280)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 88.41s (253.48s CPU time)
+
+Ran 8 test suites in 88.41s (209.31s CPU time): 72 tests passed, 0 failed, 0 skipped (72 total tests)

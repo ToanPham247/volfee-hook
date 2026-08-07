@@ -9,7 +9,7 @@
     "evmVersion": "cancun",
     "optimizer": true,
     "optimizerRuns": 200,
-    "viaIR": false,
+    "viaIR": true,
     "metadataBytecodeHash": "none",
     "cborMetadata": true,
     "ffi": false

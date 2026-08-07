@@ -194,8 +194,8 @@
    "curve": "lpFee = clamp(baseFee + kNumerator * ewmaVol / kDenominator, minLpFee, maxLpFee). Monotonic non-decreasing in volatility, bounded to [minLpFee, maxLpFee], with overflow guards that clamp to maxLpFee.",
    "updateCadence": "Per swap: the fee is READ in beforeSwap from the volatility state accumulated by prior swaps; the state is UPDATED in afterSwap from this swap's realized tick move. Reads and writes never occur in the same phase.",
    "liquidityDecreaseBehavior": "The fee is volatility-driven and independent of the pool's liquidity level; adding or removing liquidity does not move the tick and therefore does not change the fee formula, the volatility state or the immutable bounds.",
-   "manipulationResistance": "The LP fee charged on swap N is computed in beforeSwap from the EWMA volatility accumulated by swaps BEFORE N; the EWMA is updated only afterwards in afterSwap. A trader therefore cannot lower their own swap's fee with their own trade. Manufacturing volatility to raise other traders' fees costs the mandatory volume fee on every swap and moves the price against the manipulator, and the fee is hard-bounded to [minLpFee, maxLpFee] (maxLpFee < 100%, so exact-output stays supported).",
-   "failureRule": "VolMath.feeFromVol reverts only on invalid immutable parameters at construction (BadVolParams / BadInitialFee); at swap time it is pure arithmetic with overflow guards that clamp to maxLpFee, so a per-swap fee computation can neither revert the swap nor leave the immutable bounds.",
+   "manipulationResistance": "The only property claimed is that a trader cannot lower their OWN swap's fee: the fee on swap N is computed in beforeSwap from the EWMA volatility of swaps strictly BEFORE N (the EWMA is updated only in afterSwap). This is NOT immunity to all manipulation — an adversary can still shift the shared fee for OTHER traders by moving the price or wash-trading, but every such action pays the mandatory volume fee, moves the price against the actor, and the fee is hard-bounded to [minLpFee, maxLpFee] (maxLpFee < 100%), so any influence is bounded and paid-for, never free or unbounded.",
+   "failureRule": "feeFromVol is pure and cannot revert at swap time (overflow-guarded, clamped to maxLpFee), so the LP-fee override never reverts. The SEPARATE mandatory-fee executed-basis guard does revert a quote-specified swap that price-limit partial-fills (PartialFillNotSupported) or whose dust input leaves no positive AMM leg (DustNoAmmLeg), so the fee can never overcharge the executed quote; quote-unspecified swaps charge on the executed BalanceDelta and never revert.",
    "recipient": "pool-liquidity-providers"
   },
   "canonical": true,
@@ -269,6 +269,9 @@
    "testPaths": [
     "test/ProgrammableFee.t.sol",
     "test/VolAdaptiveFee.t.sol",
+    "test/VolFeeCapture.t.sol",
+    "test/VolFeeLaunch.t.sol",
+    "test/VolFeePartialFill.t.sol",
     "test/VolMath.t.sol",
     "test/fork/VolFeeFork.t.sol",
     "test/invariant/VolFeeInvariant.t.sol"
@@ -282,7 +285,7 @@
   "sharedAcrossPools": false,
   "poolNamespace": "One hook instance backs exactly one canonical launch PoolKey; all liability state is keyed by that single PoolId.",
   "poolAdmission": {
-   "enforcement": "_afterInitialize binds the FIRST initialized PoolKey that contains the immutable quoteCurrency (recording tknCurrency and poolId) and reverts every later initialization with PoolAlreadyBound; a pool without the quote currency reverts NotQuotePool; a non-dynamic-fee pool reverts NotDynamicFee.",
+   "enforcement": "afterInitialize binds ONCE (PoolAlreadyBound on any later init) and REQUIRES the pool to match the constructor-precommitted EXPECTED_TOKEN, EXPECTED_SQRT_PRICE_X96 and EXPECTED_TICK_SPACING (WrongToken / WrongStartPrice / WrongTickSpacing), plus a dynamic-fee pool (NotDynamicFee) containing the quote (NotQuotePool). This closes first-pool capture — an attacker cannot front-run the first initialization and bind the hook to a foreign token/pool. See test/VolFeeCapture.t.sol and the launch graph submissions/volfee/launch.json (test/VolFeeLaunch.t.sol).",
    "factoryOrRegistry": "The launcher initializes exactly one canonical WETH-paired PoolKey whose hooks field is this mined hook address; the hook self-binds the first such PoolId at _afterInitialize (no separate factory registry or provenance hash is used).",
    "alternativePoolBehavior": "Once bound, any second pool referencing this hook address reverts PoolAlreadyBound at initialization; pools without this hook are unaffected and never inherit fee or volatility behavior.",
    "rejectionRule": "Revert NotQuotePool for a PoolKey lacking the quote currency, NotDynamicFee for a non-dynamic-fee pool, and PoolAlreadyBound for any initialization after the first."
@@ -337,7 +340,7 @@
   "feeMechanism": {
    "used": true,
    "classification": "hook-owned-fee",
-   "chargedCurrency": "WETH (currency0, the immutable quote asset) charged on the executed gross quote-side amount of every swap. The predicate is: collect BEFORE iff the quote is the swap's specified currency, else AFTER.",
+   "chargedCurrency": "WETH (currency0, the immutable quote asset), charged on the EXECUTED gross quote-side amount of every swap. Collect BEFORE iff the quote is the swap specified currency, else AFTER (from the executed BalanceDelta). A quote-specified swap that price-limit partial-fills or dusts REVERTS (PartialFillNotSupported / DustNoAmmLeg), so the fee never exceeds the executed quote.",
    "swapQuadrants": {
     "zeroForOneExactInput": {
      "currency": "currency0",
@@ -1617,14 +1620,17 @@
    "src/lib/VolMath.sol"
   ],
   "testPaths": [
-   "test/VolAdaptiveFee.t.sol",
-   "test/VolMath.t.sol",
    "test/ProgrammableFee.t.sol",
+   "test/VolAdaptiveFee.t.sol",
+   "test/VolFeeCapture.t.sol",
+   "test/VolFeeLaunch.t.sol",
+   "test/VolFeePartialFill.t.sol",
+   "test/VolMath.t.sol",
    "test/fork/VolFeeFork.t.sol",
    "test/invariant/VolFeeInvariant.t.sol"
   ],
   "compilerBuildInfoPaths": [
-   "out/build-info/f4cfa5306ea93a2e.json"
+   "out/build-info/499b27fec563926b.json"
   ],
   "specificationPath": "docs/PROGRAMMABLE_FEE.md",
   "testEvidencePath": ".gas-snapshot",

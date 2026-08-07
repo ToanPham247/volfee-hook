@@ -7,8 +7,8 @@
     "evmVersion": "cancun",
     "optimizer": true,
     "optimizerRuns": 200,
-    "viaIR": false,
-    "note": "cancun required by Uniswap v4 (EIP-1153 transient storage). Compiles at optimizer_runs=200 without via_ir (matches upstream v4-core/periphery debug profile)."
+    "viaIR": true,
+    "note": "cancun required by Uniswap v4 (EIP-1153 transient storage). Compiles at optimizer_runs=200 with via_ir=true (required to avoid stack-too-deep in the added launch/capture/partial-fill test harness)."
   },
   "npmPackages": {
     "@openzeppelin/uniswap-hooks": {
